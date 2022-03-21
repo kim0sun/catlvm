@@ -1,21 +1,21 @@
 LHSfmla <- function(lhs) {
-   stopifnot(length(lhs > 1))
-   list(name = lhs[[1]], nclass = lhs[[2]],
-        group_var = if (length(lhs) == 3) lhs[[3]])
+   stopifnot(length(lhs) > 1)
+   c(name = lhs[[1]], nclass = lhs[[2]],
+     group_var = if (length(lhs) == 3) lhs[[3]])
 }
 
-RHSfmla <- function(rhs) {
-   drawItem <- function(rhs) {
-      if (length(rhs) == 1) return(rhs)
-      return(c(getVar(rhs[-length(rhs)][[2]]), rhs[[length(rhs)]]))
-   }
-   sapply(drawItem(rhs), eval, data)
-}
-
-lvFmla <- function(formula, ...) {
+modelFrame <- function(formula, ...) {
    if (length(formula) < 3) stop("Latent structure is wrong.")
    lc = LHSfmla(formula[[2]])
-   y = model.matrix(formula[-2], data = data)[,-1]
+   y = all.vars(formula[[3]])
 
-   return(list(lc = lc[-3], y = y))
+   return(list(lc = lc, y = y))
+}
+
+covFmla = function(formula, ...) {
+   if (length(formula) < 3) stop("Model structure is wrong.")
+   lc = formula[[2]][[1]]
+   x = RHSfmla(formula[[3]], ...)
+
+   return(list(lc = lc, x = x))
 }
