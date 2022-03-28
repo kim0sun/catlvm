@@ -4,6 +4,10 @@ LHSfmla <- function(lhs) {
      group_var = if (length(lhs) == 3) lhs[[3]])
 }
 
+RHSfmla <- function(rhs) {
+
+}
+
 modelFrame <- function(formula, ...) {
    if (length(formula) < 3) stop("Latent structure is wrong.")
    lc = LHSfmla(formula[[2]])
