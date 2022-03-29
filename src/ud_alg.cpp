@@ -17,10 +17,10 @@ double lnadd(double lx, double ly) {
 }
 
 void msrPrd(
-   int *y, double *lp,
-   int ncls, int nobs,
-   int nvar, int *ncat,
-   double *cll
+      int *y, double *lp,
+      int ncls, int nobs,
+      int nvar, int *ncat,
+      double *cll
 ) {
    const double *lp_init = lp;
    for (int i = 0; i < nobs; i ++) {
@@ -39,9 +39,9 @@ void msrPrd(
 }
 
 void upRec(
-   double *clls, double *lp,
-   int nlv, int nobs, int nl, int *nk,
-   double *dpr, double *cll, bool ceq
+      double *clls, double *lp,
+      int nlv, int nobs, int nl, int *nk,
+      double *dpr, double *cll, bool ceq
 ) {
    int nc;
    for (int j = 0; j < nlv; j ++) {
@@ -67,9 +67,9 @@ void upRec(
 
 
 void upRec2(
-   double *clls, double *lp,
-   int nlv, int *nobs, int nl, int nk,
-   double *dpr, double *cll, bool ceq
+      double *clls, double *lp,
+      int nlv, int *nobs, int nl, int nk,
+      double *dpr, double *cll, bool ceq
 ) {
    int nc;
    for (int j = 0; j < nlv; j ++) {
@@ -109,8 +109,8 @@ void dnRec2(
 
 
 double prd_prev(
-   double *cll, double *lp,
-   int ncls, int nobs, double *pst
+      double *cll, double *lp,
+      int ncls, int nobs, double *pst
 ) {
    double ll = 0;
    for (int i = 0; i < nobs; i ++) {
@@ -144,8 +144,8 @@ NumericMatrix cllf(
 
 // [[Rcpp::export]]
 NumericMatrix lcaf(
-   IntegerMatrix y, IntegerVector ncat, int ncls,
-   NumericVector prev, NumericVector par
+      IntegerMatrix y, IntegerVector ncat, int ncls,
+      NumericVector prev, NumericVector par
 ) {
    NumericMatrix cll(ncls, y.ncol());
    NumericMatrix pst(ncls, y.ncol());
@@ -153,7 +153,7 @@ NumericMatrix lcaf(
            y.ncol(), y.nrow(), ncat.begin(),
            cll.begin());
    double ll = prd_prev(cll.begin(), prev.begin(),
-            ncls, y.ncol(), pst.begin());
+                        ncls, y.ncol(), pst.begin());
    Rcout << ll << std::endl;
    return pst;
 }
