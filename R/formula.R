@@ -4,21 +4,9 @@ LHSfmla <- function(lhs) {
      group_var = if (length(lhs) == 3) lhs[[3]])
 }
 
-modelFrame <- function(...) {
-   fmlrs = list(...)
+RHSfmla <- function(rhs) {
 
-   for (f in fmlrs) {
-      if (length(f) < 3) stop("Latent structure is wrong.")
-      lc = LHSfmla(f[[2]])
-      y = all.vars(f[[3]])
-
-      yexist = y %in% names(data)
-      if (all(yexist)) msr = TRUE
-      else if (all(!yexist)) msr = FALSE
-      else stop("Latent structure is wrong.")
-   }
 }
-
 
 modelFrame <- function(formula, ...) {
    if (length(formula) < 3) stop("Latent structure is wrong.")

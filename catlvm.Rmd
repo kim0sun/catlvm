@@ -1,0 +1,55 @@
+---
+title: "catlvm : CATegorical Latent Variable Model"
+subtitle: "Upward-Downward Algorithm"
+author: 
+ - name: "Youngsun Kim"
+   email: "kim0sun@korea.ac.kr"
+   address: "Department of Statistics \\newline Korea University"
+fontsize: 11pt
+fontfamily: mathpazo
+kotex: true
+# abstract: \lipsum[1]
+# keywords: 
+#  - "keyword 1"
+#  - "keyword 2"
+#  - "keyword 3"
+#  - "..."
+output: 
+   ysktmplt::pdf_manuscript:
+      keep_tex: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Hidden Markov tree {#hmt}
+
+
+# Hierarchical latent class model {#hlca}
+$$
+\xi_{y|i}^{(u)} = \textsf{Pr}(\mathbf{Y} = \mathbf{y} | C_u = i) = \prod_{m = 1}^{M} \rho_{mk|i}^{I(y_m = k)},
+\quad
+\tau_{i|j}^{u|v} = \textsf{Pr}(C_u = i|C_v = j),
+\quad \text{and} \quad
+\pi_{i} = \textsf{Pr}(C_1 = i)
+$$
+Upward recursion
+$$
+\begin{aligned}
+\beta_{u}(k) = 
+\\
+\beta_{u,\rho(u)}(k) = 
+\\
+\beta_{\rho(u)}(k) = 
+\end{aligned}
+$$
+
+Downward recursion
+$$
+\begin{aligned}
+
+\end{aligned}
+$$
+
+
