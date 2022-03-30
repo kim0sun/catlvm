@@ -3,33 +3,61 @@
 using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
-class catlv{
-public:
-   int depth;
-   bool isleaf;
-   bool isroot;
+// class catlv{
+// public:
+//    int nk;
+//
+//    int depth;
+//    bool isleaf;
+//    bool isroot;
+//
+//    int parent;
+//    int *children;
+//
+//    double *beta;
+//    double *alpha;
+//
+//    int *y;
+//
+//
+//    catlv(List _info) {
+//       nk = _info["nclass"];
+//       depth = _info["depth"];
+//       isleaf = _info["isleaf"];
+//       isroot = _info["isroot"];
+//       parent = _info["parent"];
+//       children = _info["children"];
+//       y = _info["y"];
+//    }
+//
+//    // void msrPrd();
+//    // void upRec();
+//    // void dnRec();
+//    // void udPrd();
+//    // void upRecS();
+//    // void dnRecS();
+//    // void udPrdS();
+// };
+// [[Rcpp::export]]
+NumericVector prb_gnr(int nk) {
+   NumericVector p = runif(nk, 0, 1);
+   return p / sum(p);
+}
 
-   int parent;
-   int *children;
+// [[Rcpp::export]]
+NumericMatrix prb_gnrN(int nk, int N) {
+   NumericVector p = runif(nk, 0, 1);
+   NumericMatrix np(nk, N);
 
-   double *beta;
-   double *alpha;
-
-   catlv(List _info) {
-      depth = _info["depth"];
-      isleaf = _info["isleaf"];
-      isroot = _info["isroot"];
-      parent = _info["parent"];
-      children = _info["children"];
+   for (int i = 0; i < N; i ++) {
+      for (int j = 0; j < nk; j ++) {
+         np(j, i) = p[j];
+      }
    }
+   return np;
+}
 
-   void upRec();
-   void dnRec();
-   void udPrd();
-   void upRecS();
-   void dnRecS();
-   void udPrdS();
-};
+
 
 // measured lv : beta[nk * obs] / alpha[nk * obs]
 // middle lv : beta[nl * obs] / jbeta[nk * nl * obs] / alpha[nk * obs]
@@ -49,20 +77,21 @@ double logAdd(double lx, double ly) {
 }
 
 void msrPrd(
-   int *y, double *lp,
+   int *y, double *lpre,
    int nk, int nobs,
    int nvar, int *ncat,
    double *beta
 ) {
-   const double *lp_init = lp;
+   if (nvar == 0) return;
+   const double *lpre_init = lpre;
    for (int i = 0; i < nobs; i ++) {
-      lp = (double *)lp_init;
+      lpre = (double *)lpre_init;
       for (int m = 0; m < nvar; m ++) {
          for (int k = 0; k < nk; k ++) {
             if (y[m] > 0)
-               beta[k] += lp[y[m] - 1];
+               beta[k] += lpre[y[m] - 1];
 
-            lp += ncat[m];
+            lpre += ncat[m];
          }
       }
       y += nvar;
@@ -76,16 +105,16 @@ void msrPrd(
 // lbeta = [#cclass per nlv] * nobs
 // lp = [#class * #pclass]
 void upRec(
-   double *beta, double *jbeta, double *lbeta, double *lp,
+   double *beta, double *jbeta, double *lbeta, double *lprt,
    int nlv, int nl, int *nk
 ) {
    for (int j = 0; j < nlv; j ++) {
       for (int l = 0; l < nl; l ++) {
          double ml = 0;
          for (int k = 0; k < nk[j]; k ++)
-            ml += exp(lp[k] + lbeta[k]);
+            ml += exp(lprt[k] + lbeta[k]);
 
-         lp += nk[j];
+         lprt += nk[j];
          jbeta[l] = log(ml);
          beta[l] += log(ml);
       }
@@ -94,60 +123,80 @@ void upRec(
    }
 }
 
-
 // nalpha = [#class] * nobs
 // alpha = [#pclass] * nobs
 // beta = [#pclass] * nobs
 // ujbeta = [#pclass] * nobs
 // lp = [#class * #pclass]
 void dnRec(
-   double *alpha, double *ualpha, double *ubeta, double *ujbeta, double *lp,
+   double *alpha, double *ualpha, double *ubeta, double *ujbeta, double *lprt,
    int nl, int nk
 ) {
    for (int k = 0; k < nk; k ++) {
       double val = 0;
       for (int l = 0; l < nl; l ++) {
-         val += exp(lp[k + l * nk] + ubeta[l] + ualpha[l] - ujbeta[l]);
+         val += exp(lprt[k + l * nk] + ubeta[l] + ualpha[l] - ujbeta[l]);
       }
       alpha[k] = log(val);
    }
 }
 
-void udPrd(
-   double *mar, double *joint,
-   double *alpha, double *ualpha,
-   double *beta, double *jbeta, double *ubeta,
-   double *lp, int nl, int nk
+void edgePrb(
+      double *joint, double *ualpha,
+      double *beta, double *jbeta, double *ubeta,
+      double *lprt, int nl, int nk
 ) {
    for (int l = 0; l < nl; l ++) {
-      for (int k = 0; k < nk; k ++) {
-         joint[l] = beta[k] + lp[k] + ualpha[l] + ubeta[l] - jbeta[l];
+      for (int k = 0; k < nk; k ++)
+         joint[l] = lprt[k] + ualpha[l] +
+            beta[k] + ubeta[l] - jbeta[l];
 
-         if (l == 0) {
-            mar[k] = alpha[k] + beta[k];
-         }
-      }
-      lp += nk;
+      lprt += nk;
       joint += nk;
    }
 }
 
 
-void treePst(
-   int ndepth,
-   IntegerVector nk,
-   IntegerVector plv,
-   List clv,
-   List beta
-) {
-   // measure leaf lv
 
-   // elevate internal lv -> root lv
 
-   // decline internal lv -> leaf lv
+// List treePst(
+//    List y, IntegerVector nobs, IntegerVector nvar, List ncat,
+//    int nlv, int nedge, int ndepth, LogicalVector isleaf,
+//    List
+//    IntegerVector downfrom, IntegerVector downto,
+//    IntegerVector upfrom, IntegerVector upto,
+//    IntegerVector nk, List lprt
+//    List beta, List alpha
+// ) {
+//    List jbeta(nedge);
+//    List mpst(nlv);
+//    List jpst(nedge);
+//    // measure leaf lv
+//
+//    // elevate internal lv -> root lv
+//    for (int d = ndepth - 1; d > 0; d --) {
+//       double *beta_d = beta[d];
+//       upRec(beta_d, jbeta[e], beta[d + 1], lrpt[e],
+//             nlv[], nl[upto[e]], nk[upto[e]]);
+//    }
+//
+//    // decline internal lv -> leaf lv
+//
+//    // depth declining
+//
+// }
 
-   // depth declining
+NumericMatrix tttt(List a) {
 
+
+   for (int i = 0; i < a.length(); i ++) {
+      double *ai = a[i];
+      for (int j = 0; j < n[i]; j ++) {
+         r[i] += *ai;
+         ai ++;
+      }
+   }
+   return r;
 }
 
 
