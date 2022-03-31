@@ -76,6 +76,7 @@ double logAdd(double lx, double ly) {
    return lxy;
 }
 
+
 void msrPrd(
    int *y, double *lpre,
    int nk, int nobs,
@@ -105,21 +106,40 @@ void msrPrd(
 // lbeta = [#cclass per nlv] * nobs
 // lp = [#class * #pclass]
 void upRec(
-   double *beta, double *jbeta, double *lbeta, double *lprt,
-   int nlv, int nl, int *nk
+   double *beta, double *jbeta, std::vector<double*> lbeta,
+   double *lprt, IntegerVector llv, int nlv, int nl, int *nk
 ) {
    for (int j = 0; j < nlv; j ++) {
+      double *lbetaj = lbeta[llv[j]];
       for (int l = 0; l < nl; l ++) {
          double ml = 0;
          for (int k = 0; k < nk[j]; k ++)
-            ml += exp(lprt[k] + lbeta[k]);
+            ml += exp(lprt[k] + lbetaj[k]);
 
          lprt += nk[j];
          jbeta[l] = log(ml);
          beta[l] += log(ml);
       }
       jbeta += nl;
-      lbeta += nk[j];
+   }
+}
+
+void upRec2(
+      double *beta, double *jbeta, double *lbeta,
+      double *lprt, int nobs, int nl, int nk
+) {
+   for (int j = 0; j < nobs; j ++) {
+      for (int l = 0; l < nl; l ++) {
+         double ml = 0;
+         for (int k = 0; k < nk; k ++)
+            ml += exp(lprt[k] + lbeta[k]);
+
+         lprt += nk;
+         jbeta[l] = log(ml);
+         beta[l] += log(ml);
+      }
+      jbeta += nl;
+      lbeta += nk;
    }
 }
 
@@ -156,44 +176,108 @@ void edgePrb(
    }
 }
 
+List treeFit(
+   IntegerVector y, int nobs,
+   IntegerVector nvar, IntegerVector ncat,
+   int nlv, IntegerMatrix edges, int nedge,
+   IntegerVector nk
+) {
+   // List alpha(nlv);
+   // List beta(nlv);
+   // List jbeta(nedge);
+
+   List mpst(nlv);
+   List jpst(nedge);
+
+   std::vector<double*> plpre(y.length());
+   std::vector<double*> plprt(nedge);
+
+   std::vector<double*> palpha(nlv);
+   std::vector<double*> pbeta(nlv);
+   std::vector<double*> pjbeta(nedge);
+
+   std::vector<double*> pmpst(y.length() + 1);
+   std::vector<double*> pjpst(nedge);
 
 
+   int *py = y.begin();
+   int *pnc = ncat.begin();
+   for (int v = 0; v < y.length(); v ++) {
+      msrPrd(py, plpre[v], nk[v], nobs, nvar[v], pnc, pbeta[v]);
+      py += nvar[v] * nobs;
+      pnc += nvar[v];
+   }
 
-// List treePst(
-//    List y, IntegerVector nobs, IntegerVector nvar, List ncat,
-//    int nlv, int nedge, int ndepth, LogicalVector isleaf,
-//    List
-//    IntegerVector downfrom, IntegerVector downto,
-//    IntegerVector upfrom, IntegerVector upto,
-//    IntegerVector nk, List lprt
-//    List beta, List alpha
-// ) {
-//    List jbeta(nedge);
-//    List mpst(nlv);
-//    List jpst(nedge);
-//    // measure leaf lv
-//
-//    // elevate internal lv -> root lv
-//    for (int d = ndepth - 1; d > 0; d --) {
-//       double *beta_d = beta[d];
-//       upRec(beta_d, jbeta[e], beta[d + 1], lrpt[e],
-//             nlv[], nl[upto[e]], nk[upto[e]]);
-//    }
-//
-//    // decline internal lv -> leaf lv
-//
-//    // depth declining
-//
-// }
+   for (int e = 0; e < nedge; e ++) {
+      int fr = edges(e, 0); int to = edges(e, 1);
+      double *lbeta = pbeta[fr]; double *beta = pbeta[to];
+      double *jbeta = pjbeta[e];
+      double *nlprt = plprt[e];
 
-NumericMatrix tttt(List a) {
+      for (int i = 0; i < nobs; i ++) {
+         for (int l = 0; l < nk[to]; l ++) {
+            double ml = 0;
+            for (int k = 0; k < nk[fr]; k ++)
+               ml += exp(nlprt[k] + lbeta[k]);
 
+            nlprt += nk[fr];
+            jbeta[l] = log(ml);
+            beta[l] += log(ml);
+         }
+         jbeta += nk[to];
+         beta  += nk[to];
+      }
+   }
 
-   for (int i = 0; i < a.length(); i ++) {
-      double *ai = a[i];
-      for (int j = 0; j < n[i]; j ++) {
-         r[i] += *ai;
-         ai ++;
+   for (int e = nedge - 1; e == 0; e --) {
+      int fr = edges(e, 1); int to = edges(e, 0);
+      double *alpha = palpha[to]; double *ualpha = palpha[fr];
+      double *beta = pbeta[to];
+      double *ubeta = pbeta[fr]; double *ujbeta = pjbeta[e];
+      double *mpst; double *jpst = pjpst[e];
+      double *nlprt = plprt[e];
+      if (to < y.length()) mpst = pmpst[to];
+
+      for (int i = 0; i < nobs; i ++) {
+         for (int k = 0; k < nk[to]; k ++) {
+            double jpr = 0;
+            double mpr = 0;
+            for (int l = 0; l < nk[fr]; l ++) {
+               jpr = nlprt[k + l * nk[to]] + ubeta[l] + ualpha[l] - ujbeta[l];
+               mpr += exp(jpr);
+               jpst[k + l * nk[to]] = jpr + beta[k];
+            }
+            alpha[k] = log(mpr);
+            if (to < y.length()) mpst[k] = alpha[k] + beta[k];
+         }
+
+         nlprt += nk[to] * nk[fr];
+         jpst += nk[to] * nk[fr];
+         if (to < y.length()) mpst += nk[to];
+         alpha += nk[to];
+         ualpha += nk[fr];
+         beta += nk[to];
+         ubeta += nk[fr];
+         ujbeta += nk[fr];
+      }
+   }
+}
+
+// [[Rcpp::export]]
+List tttt(int n) {
+   std::vector<double *> pv(n);
+   List r(n);
+   for (int i = 0; i < n; i ++) {
+      NumericMatrix ri(2, 2);
+      pv[i] = ri.begin();
+      r[i] = ri;
+
+      Rcout << ri << std::endl;
+   }
+   for (int i = 0; i < n; i ++) {
+      double *pvi = pv[i];
+      for (int j = 0; j < 4; j ++) {
+         pvi[j] += i * j;
       }
    }
    return r;
