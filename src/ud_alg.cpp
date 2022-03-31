@@ -76,6 +76,7 @@ double logAdd(double lx, double ly) {
    return lxy;
 }
 
+
 void msrPrd(
    int *y, double *lpre,
    int nk, int nobs,
@@ -105,21 +106,40 @@ void msrPrd(
 // lbeta = [#cclass per nlv] * nobs
 // lp = [#class * #pclass]
 void upRec(
-   double *beta, double *jbeta, double *lbeta, double *lprt,
-   int nlv, int nl, int *nk
+   double *beta, double *jbeta, std::vector<double*> lbeta,
+   double *lprt, IntegerVector llv, int nlv, int nl, int *nk
 ) {
    for (int j = 0; j < nlv; j ++) {
+      double *lbetaj = lbeta[llv[j]];
       for (int l = 0; l < nl; l ++) {
          double ml = 0;
          for (int k = 0; k < nk[j]; k ++)
-            ml += exp(lprt[k] + lbeta[k]);
+            ml += exp(lprt[k] + lbetaj[k]);
 
          lprt += nk[j];
          jbeta[l] = log(ml);
          beta[l] += log(ml);
       }
       jbeta += nl;
-      lbeta += nk[j];
+   }
+}
+
+void upRec2(
+      double *beta, double *jbeta, double *lbeta,
+      double *lprt, int nobs, int nl, int nk
+) {
+   for (int j = 0; j < nobs; j ++) {
+      for (int l = 0; l < nl; l ++) {
+         double ml = 0;
+         for (int k = 0; k < nk; k ++)
+            ml += exp(lprt[k] + lbeta[k]);
+
+         lprt += nk;
+         jbeta[l] = log(ml);
+         beta[l] += log(ml);
+      }
+      jbeta += nl;
+      lbeta += nk;
    }
 }
 
@@ -156,44 +176,75 @@ void edgePrb(
    }
 }
 
+List treeFit(
+   IntegerVector nobs, int nlv,
+   IntegerMatrix edges, int nedge,
+   IntegerVector nk, List y
+) {
+   List alpha(nlv);
+   List beta(nlv);
+   List jbeta(nedge);
 
+   for (int v = 0; v < nlv; v ++) {
+      if (isleaf) {
+         msrPrd(py[v], plpre[v], nk[v], nobs[v], nvar[v], ncat[v], pbeta[v])
+      }
+   }
 
+   for (int e = 0; e < nedge; e ++) {
+      double *lbeta = pbeta[edges(e, 0)];
+      double *beta = pbeta[edges(e, 1)];
+      double *jbeta = pjbeta[e];
+      double *nlprt = lprt[e];
 
-// List treePst(
-//    List y, IntegerVector nobs, IntegerVector nvar, List ncat,
-//    int nlv, int nedge, int ndepth, LogicalVector isleaf,
-//    List
-//    IntegerVector downfrom, IntegerVector downto,
-//    IntegerVector upfrom, IntegerVector upto,
-//    IntegerVector nk, List lprt
-//    List beta, List alpha
-// ) {
-//    List jbeta(nedge);
-//    List mpst(nlv);
-//    List jpst(nedge);
-//    // measure leaf lv
-//
-//    // elevate internal lv -> root lv
-//    for (int d = ndepth - 1; d > 0; d --) {
-//       double *beta_d = beta[d];
-//       upRec(beta_d, jbeta[e], beta[d + 1], lrpt[e],
-//             nlv[], nl[upto[e]], nk[upto[e]]);
-//    }
-//
-//    // decline internal lv -> leaf lv
-//
-//    // depth declining
-//
-// }
+      for (int i = 0; i < nobs[edges(e, 1)]; i ++) {
+         for (int l = 0; l < nk[edges(e, 1)]; l ++) {
+            double ml = 0;
+            for (int k = 0; k < nk[edges(e, 0)]; k ++)
+               ml += exp(nlprt[k] + lbeta[k]);
 
-NumericMatrix tttt(List a) {
+            nlprt += nk[edges(e, 0)];
+            jbeta[l] = log(ml);
+            beta[l] += log(ml);
+         }
+         jbeta += nk[edges(e, 1)];
+      }
+   }
 
+   for (int e = 0; e < nedge; e ++) {
+      double *alpha = palpha[edges(e, 0)];
+      double *ualpha = palpha[edges(e, 1)];
+      double *ubeta = pbeta[edges(e, 1)];
+      double *ujbeta = pjbeta[e];
+      double *nlprt = lprt[e];
 
-   for (int i = 0; i < a.length(); i ++) {
-      double *ai = a[i];
-      for (int j = 0; j < n[i]; j ++) {
-         r[i] += *ai;
-         ai ++;
+      for (int i = 0; i < nobs[edges(e, 0)]; i ++) {
+         for (int k = 0; k < nk[edges(e, 0)]; k ++) {
+            double val = 0;
+            for (int l = 0; l < nk[edges(e, 1)]; l ++) {
+               val += exp(nlprt[k + l * nk[edges(e, 1)]] + ubeta[l] + ualpha[l] - ujbeta[l]);
+            }
+            alpha[k] = log(val);
+         }
+      }
+   }
+}
+
+// [[Rcpp::export]]
+List tttt(int n) {
+   std::vector<double *> pv(n);
+   List r(n);
+   for (int i = 0; i < n; i ++) {
+      NumericMatrix ri(2, 2);
+      pv[i] = ri.begin();
+      r[i] = ri;
+
+      Rcout << ri << std::endl;
+   }
+   for (int i = 0; i < n; i ++) {
+      double *pvi = pv[i];
+      for (int j = 0; j < 4; j ++) {
+         pvi[j] += i * j;
       }
    }
    return r;
