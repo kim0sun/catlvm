@@ -205,6 +205,13 @@ void edgePrb(
    }
 }
 
+// alpha (nobs * nk) * lv
+// beta (nobs * nk) * lv
+// jbeta (nobs * nl) * edge
+// lpt (nobs * nk * nl) * edge
+// lpe (nk * sum(ncat)) * lv
+// mpost (nobs * nk) * lv
+// jpost (nobs * nl * nk)  * edge
 List treeFit(
    IntegerVector y, IntegerVector w, int nobs,
    IntegerVector nvar, IntegerVector ncat, int nlv,
