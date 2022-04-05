@@ -28,28 +28,40 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Hierarchical latent class model {#hlca}
 $$
-\xi_{y|i}^{(u)} = \textsf{Pr}(\mathbf{Y} = \mathbf{y} | C_u = i) = \prod_{m = 1}^{M} \rho_{mk|i}^{I(y_m = k)},
+\xi_{u}(i) = \textsf{Pr}\left[ \mathbf{Y}^{(u)} = \mathbf{y} | C_u = i \right] = 
+\prod_{m = 1}^{M} \prod_{k}^{r_m} \rho_{mk|i}^{I(y_m = k)},
 \quad
-\tau_{i|j}^{u|v} = \textsf{Pr}(C_u = i|C_v = j),
+\tau_{i, j}^{(\rho(u), u)} = \textsf{Pr}\left[ C_u = j|C_{\rho(u)} = i \right],
 \quad \text{and} \quad
 \pi_{i} = \textsf{Pr}(C_1 = i)
 $$
 Upward recursion
 $$
 \begin{aligned}
-\beta_{u}(k) = 
+\beta_i^{(u)}(k) = 
 \\
-\beta_{u,\rho(u)}(k) = 
+\beta_i^{(u,\rho(u))}(k) = 
 \\
-\beta_{\rho(u)}(k) = 
+\beta_i^{(\rho(u))}(k) = 
 \end{aligned}
 $$
 
 Downward recursion
 $$
 \begin{aligned}
-
+\alpha_i^{(u)}(k) = \sum_{j}\frac{\tau_{j, k}^{(\rho(u), u)} \times \alpha_i^{(\rho(u))}(j) \times  \beta_i^{(\rho(u))}(j)}{\beta_{i}^{(u, \rho(u))}(j)}
 \end{aligned}
 $$
 
-
+Posterior probabilties
+$$
+\begin{aligned}
+\theta_{i}^{(u)}(k) &= \textsf{Pr}(C_u = k | \mathbf{y}_i) 
+\\
+&= \alpha_u(k) \times \beta_u(k)
+\\
+\theta_{i}^{\rho(u), u}(j,k) &= \textsf{Pr}(C_{\rho(u)} = j, C_u = k | \mathbf{y}_i) 
+\\
+&= \frac{\beta_i^{(u)}(k) \times \tau_{j, k}^{(\rho(u), u)} \times \alpha_i^{(\rho(u))}(j) \times  \beta_i^{(\rho(u))}(j)}{\beta_{i}^{(u, \rho(u))}(j)}
+\end{aligned}
+$$

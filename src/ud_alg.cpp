@@ -38,8 +38,16 @@ using namespace Rcpp;
 //    // void dnRecS();
 //    // void udPrdS();
 // };
+
 // [[Rcpp::export]]
-NumericVector ptr_gnr(int l, int k, int n) {
+NumericVector pi_gnr(int k, int n) {
+   NumericVector p(k);
+   p = runif(k, 0, 1);
+   return rep(log(p / sum(p)), n);
+}
+
+// [[Rcpp::export]]
+NumericVector tau_gnr(int l, int k, int n) {
    NumericVector p(k);
    NumericVector pv(k * l);
    double *ppv = pv.begin();
@@ -52,27 +60,12 @@ NumericVector ptr_gnr(int l, int k, int n) {
       ppv += k;
    }
 
-   return pv;
-}
-
-// [[Rcpp::export]]
-NumericVector ptr_gnr2(int l, int k, int n) {
-   NumericVector p(k);
-   NumericVector pv(k * l);
-
-   for (int i = 0; i < l; i ++) {
-      p = runif(k, 0, 1);
-      for (int j = 0; j < k; j ++) {
-         pv[j + i * k] = log(p[j] / sum(p));
-      }
-   }
-
-   return pv;
+   return rep(pv, n);
 }
 
 
 // [[Rcpp::export]]
-NumericVector pem_gnr(int k, IntegerVector ncat) {
+NumericVector rho_gnr(int k, IntegerVector ncat) {
    NumericVector pv(k * sum(ncat));
    double *ppv = pv.begin();
 
@@ -108,20 +101,17 @@ double logAdd(double lx, double ly) {
 
 
 void msrPrd(
-   int *y, double *lpre,
-   int nk, int nobs,
-   int nvar, int *ncat,
-   double *beta
+   int *y, const double *prho, double *beta,
+   int nk, int nobs, int nvar, int *ncat
 ) {
-   const double *lpre_init = lpre;
    for (int i = 0; i < nobs; i ++) {
-      lpre = (double *)lpre_init;
+      double *prhoi = (double *)prho;
       for (int m = 0; m < nvar; m ++) {
          for (int k = 0; k < nk; k ++) {
             if (y[m] > 0)
-               beta[k] += lpre[y[m] - 1];
+               beta[k] += prhoi[y[m] - 1];
 
-            lpre += ncat[m];
+            prhoi += ncat[m];
          }
       }
       y += nvar;
@@ -129,46 +119,71 @@ void msrPrd(
    }
 }
 
+void argMpr(
+   int *y, double *pst,
+   const double *prho, const double *npr,
+   int nk, int nobs, int nvar, int *ncat
+) {
+   for (int i = 0; i < nobs; i ++) {
+      double *prhoi = (double *) prho;
+      double *npri = (double *) npr;
+      for (int m = 0; m < nvar; m ++) {
+         for (int k = 0; k < nk; k ++) {
+            if (y[m] > 0) npri[y[m] - 1] += exp(pst[k]);
+            else {
+               for (int r = 0; r < ncat[m]; r ++) {
+                  npri[r] += exp(pst[k] + prho[r]);
+               }
+            }
+            y += nvar;
+            prhoi += ncat[m];
+            npri += ncat[m];
+         }
+      }
+      pst += nk;
+   }
+}
+
 
 // beta = [#class] * nobs
-// jbeta = [#class * nlv] * nobs
-// lbeta = [#cclass per nlv] * nobs
+// jbeta = [#class * nlvar] * nobs
+// lb = [#cclass per nlvar] * nobs
 // lp = [#class * #pclass]
 void upRec(
-   double *beta, double *jbeta, std::vector<double*> lbeta,
-   double *lprt, IntegerVector llv, int nlv, int nl, int *nk
+   double *beta, double *jbeta, double *lb,
+   double *prt, int nobs, int nl, int nk
 ) {
-   for (int j = 0; j < nlv; j ++) {
-      double *lbetaj = lbeta[llv[j]];
+   for (int i = 0; i < nobs; i ++) {
       for (int l = 0; l < nl; l ++) {
          double ml = 0;
-         for (int k = 0; k < nk[j]; k ++)
-            ml += exp(lprt[k] + lbetaj[k]);
+         for (int k = 0; k < nk; k ++)
+            ml += exp(prt[k] + lb[k]);
 
-         lprt += nk[j];
+         prt += nk;
          jbeta[l] = log(ml);
          beta[l] += log(ml);
       }
       jbeta += nl;
+      beta  += nl;
    }
 }
 
 void upRec2(
-      double *beta, double *jbeta, double *lbeta,
+      double *beta, double *jbeta, double *lb,
       double *lprt, int nobs, int nl, int nk
 ) {
    for (int j = 0; j < nobs; j ++) {
       for (int l = 0; l < nl; l ++) {
          double ml = 0;
          for (int k = 0; k < nk; k ++)
-            ml += exp(lprt[k] + lbeta[k]);
+            ml += exp(lprt[k] + lb[k]);
 
          lprt += nk;
          jbeta[l] = log(ml);
          beta[l] += log(ml);
       }
       jbeta += nl;
-      lbeta += nk;
+      lb += nk;
    }
 }
 
@@ -178,15 +193,27 @@ void upRec2(
 // ujbeta = [#pclass] * nobs
 // lp = [#class * #pclass]
 void dnRec(
-   double *alpha, double *ualpha, double *ubeta, double *ujbeta, double *lprt,
-   int nl, int nk
+   double *alpha, double *ualpha,
+   double *beta, double *ubeta, double *jbeta,
+   int nobs, int nl, int nk, double *prt,
+   double *mpt, double *umpt, double *jpt
 ) {
-   for (int k = 0; k < nk; k ++) {
-      double val = 0;
-      for (int l = 0; l < nl; l ++) {
-         val += exp(lprt[k + l * nk] + ubeta[l] + ualpha[l] - ujbeta[l]);
+   for (int i = 0; i < nobs; i ++) {
+      for (int k = 0; k < nk; k ++) {
+         double val = 0;
+         double svl = 0;
+         for (int l = 0; l < nl; l ++) {
+            val = exp(prt[k + l * nk] + umpt[l] - jbeta[l]);
+            jpt[k + l * nk] = val + beta[k];
+            svl += val;
+         }
+         alpha[k] = log(svl);
+         mpt[k] = alpha[k] + beta[k];
       }
-      alpha[k] = log(val);
+      prt += nk * nl;
+      jpt += nk * nl; mpt += nk;
+      alpha += nk; ualpha += nl;
+      beta += nk; ubeta += nl; jbeta += nl;
    }
 }
 
@@ -205,142 +232,159 @@ void edgePrb(
    }
 }
 
-// alpha (nobs * nk) * lv
-// beta (nobs * nk) * lv
-// jbeta (nobs * nl) * edge
-// lpt (nobs * nk * nl) * edge
-// lpe (nk * sum(ncat)) * lv
-// mpost (nobs * nk) * lv
-// jpost (nobs * nl * nk)  * edge
+// y (nobs * sum(nvar))
+// w (nobs)
+// nvar (# measured lv)
+// ncat (sum(nvar))
+// edges (nedge)
+// constr (# measured lv)
+// ncls (nlvar)
 List treeFit(
-   IntegerVector y, IntegerVector w, int nobs,
-   IntegerVector nvar, IntegerVector ncat, int nlv,
-   IntegerMatrix edges, int nedge, IntegerVector ncls
+   IntegerVector y, NumericVector w,
+   IntegerVector leaf, IntegerVector constr,
+   IntegerVector nvar, IntegerVector ncat,
+   IntegerMatrix edges, IntegerVector ncls,
+   int max_iter, double tol
 ) {
-   List lpe(y.length());
-   List lpt(nedge);
+   double llik = 0;
+   int nobs = w.length();
+   int nlvar  = ncls.length();
+   int nleaf = leaf.length();
+   int nedge = edges.nrow();
+   int nuniq = max(constr);
 
-   List lalpa(nlv);
-   List lbeta(nlv);
+   List lrho(nuniq);
+   List ltau(nedge);
+   NumericVector lpi = pi_gnr(ncls[nlvar - 1], nobs) + log(w);
+
+   List la(nlvar);
+   List lb(nlvar);
    List ljbta(nedge);
 
-   List lmpt(y.length() + 1);
-   List ljpt(nedge);
+   List lmpt(nlvar);
+   List ljpst(nedge);
 
 
-   std::vector<double*> ppe(y.length());
-   std::vector<double*> ppt(nedge);
-   double* ppp;
+   std::vector<double*> prho(nleaf);
+   std::vector<double*> ptau(nedge);
+   double* ppi;
 
-   std::vector<double*> palpa(nlv);
-   std::vector<double*> pbeta(nlv);
+   std::vector<double*> pa(nlvar);
+   std::vector<double*> pb(nlvar);
    std::vector<double*> pjbta(nedge);
 
-   std::vector<double*> pmpt(y.length() + 1);
-   std::vector<double*> pjpt(nedge);
+   std::vector<double*> pmpt(nlvar);
+   std::vector<double*> pjpst(nedge);
 
-   for (int v = 0; v < y.length(); v ++) {
-      NumericVector pem = pem_gnr(ncls[v], ncat[v]);
-      ppe[v] = pem.begin();
-      lpe[v] = pem;
+   for (int v = 0; v < nleaf; v ++) {
+      NumericVector rho = rho_gnr(ncls[v], ncat[v]);
+      prho[v] = rho.begin();
+      lrho[v] = rho;
       NumericVector mpt(nobs * ncls[v]);
       pmpt[v] = mpt.begin();
       lmpt[v] = mpt;
    }
 
-   NumericVector mpt(nobs * ncls[nlv - 1]);
-   pmpt[y.length()] = mpt.begin();
-   lmpt[y.length()] = mpt;
-
    for (int d = 0; d < nedge; d ++) {
-      NumericVector prt = ptr_gnr(ncls[edges(d, 0)], ncls[edges(d, 1)], nobs);
-      ppt[d] = prt.begin();
-      lpt[d] = prt;
-      NumericVector jpt(nobs * ncls[edges(d, 0)] * ncls[edges(d, 1)]);
-      pjpt[d] = prt.begin();
-      ljpt[d] = prt;
+      NumericVector tau = tau_gnr(ncls[edges(d, 0)], ncls[edges(d, 1)], nobs);
+      ptau[d] = tau.begin();
+      ltau[d] = tau;
+      NumericVector jpst(nobs * ncls[edges(d, 0)] * ncls[edges(d, 1)]);
+      pjpst[d] = jpst.begin();
+      ljpst[d] = jpst;
       NumericVector jbta(nobs * ncls[edges(d, 1)]);
       pjbta[d] = jbta.begin();
       ljbta[d] = jbta;
    }
 
-   for (int v = 0; v < nlv; v ++) {
+   for (int v = 0; v < nlvar; v ++) {
       NumericVector alpha(nobs * ncls[v]);
       NumericVector beta(nobs * ncls[v]);
-      palpa[v] = alpha.begin();
-      pbeta[v] = beta.begin();
-      lalpa[v] = alpha;
-      lbeta[v] = beta;
+      pa[v] = alpha.begin();
+      pb[v] = beta.begin();
+      la[v] = alpha;
+      lb[v] = beta;
    }
 
+   int iter = 0;
+   double diff = R_PosInf;
+   while (iter < max_iter || diff > tol) {
+      iter ++;
 
-   int *py = y.begin();
-   int *pnc = ncat.begin();
-   for (int v = 0; v < y.length(); v ++) {
-      msrPrd(py, ppe[v], ncls[v], nobs, nvar[v], pnc, pbeta[v]);
-      py += nvar[v] * nobs;
-      pnc += nvar[v];
-   }
-
-   for (int d = 0; d < nedge; d ++) {
-      int vfrom = edges(d, 0); int vto = edges(d, 1);
-      int nk = ncls[vfrom]; int nl = ncls[vto];
-      double *lbeta = pbeta[vfrom]; double *beta = pbeta[vto];
-      double *jbeta = pjbta[d];
-      double *prt = ppt[d];
-
-      for (int i = 0; i < nobs; i ++) {
-         for (int l = 0; l < nl; l ++) {
-            double ml = 0;
-            for (int k = 0; k < nk; k ++)
-               ml += exp(prt[k] + lbeta[k]);
-
-            prt += nk;
-            jbeta[l] = log(ml);
-            beta[l] += log(ml);
-         }
-         jbeta += nl;
-         beta  += nl;
+      // (expectation-step)
+      // initial beta, alpha
+      int *py = y.begin();
+      int *pnc = ncat.begin();
+      for (int v = 0; v < nleaf; v ++) {
+         msrPrd(py, prho[constr[v]], pb[v],
+                ncls[v], nobs, nvar[v], pnc);
+         py += nvar[v] * nobs;
+         pnc += nvar[v];
       }
-   }
 
-   for (int d = nedge - 1; d == 0; d --) {
-      int vfrom = edges(d, 1); int vto = edges(d, 0);
-      int nl = ncls[vfrom];  int nk = ncls[vto];
-      double *alpha = palpa[vto];
-      double *ualpha = palpa[vfrom];
-      double *beta = pbeta[vto];
-      double *ubeta = pbeta[vfrom];
-      double *jbeta = pjbta[d];
-      double *mpt; double *jpt = pjpt[d];
-      if (vto < y.length()) mpt = pmpt[vto];
-      double *prt = ppt[d];
+      // upward recursion
+      for (int d = 0; d < nedge; d ++) {
+         int u = edges(d, 0);
+         int v = edges(d, 1);
+         upRec(pb[v], pjbta[d], pb[u], ptau[d],
+               nobs, ncls[u], ncls[v]);
+      }
 
-      for (int i = 0; i < nobs; i ++) {
-         for (int k = 0; k < nk; k ++) {
-            double jpr = 0;
-            double mpr = 0;
-            for (int l = 0; l < nl; l ++) {
-               jpr = prt[k + l * nk] + ubeta[l] + ualpha[l] - jbeta[l];
-               mpr += exp(jpr);
-               jpt[k + l * nk] = jpr + beta[k];
+      // downward recursion
+      la[nlvar - 1] = lpi;
+      NumericVector beta1 = lb[nlvar - 1];
+      NumericVector alpha1 = la[nlvar - 1];
+      lmpt[nlvar - 1] = alpha1 + beta1;
+      for (int d = nedge - 1; d == 0; d --) {
+         int u = edges(d, 0);
+         int v = edges(d, 1);
+         int nl = ncls[v];  int nk = ncls[u];
+         dnRec(pa[u], pa[v], pb[u], pb[v], pjbta[d],
+               nobs, ncls[v], ncls[u], ptau[d],
+               pmpt[u], pmpt[v], pjpst[d]);
+      }
+
+      List nlrho(nleaf);
+      // (maximization-step)
+      for (int v = 0; v < nleaf; v ++) {
+         NumericVector opr = lrho[v];
+         NumericVector npr(opr.length());
+         int *py  = y.begin();
+         double *rho = prho[constr[v]];
+         double *pnpr = npr.begin();
+         double *mpt = pmpt[v];
+         for (int m = 0; m < nvar[v]; m ++) {
+            for (int k = 0; k < ncls[v]; k ++) {
+               for (int i = 0; i < nobs; i ++) {
+                  if (py[i] > 0) prho[py[i]] += exp(mpt[v]);
+                  else {
+                     for (int r = 0; r < ncat[m]; r ++) {
+                        pnpr[r] += exp(mpt[v] + prho[r]);
+                     }
+                  }
+               }
+               py += nobs;
             }
-            alpha[k] = log(mpr);
-            if (vto < y.length()) mpt[k] = alpha[k] + beta[k];
+            pnpr += ncat[m];
+            prho += ncat[m];
          }
-
-         prt += nk * nl;
-         jpt += nk * nl;
-         if (vto < y.length()) mpt += nk;
-         alpha += nk;
-         ualpha += nl;
-         beta += nk;
-         ubeta += nl;
-         jbeta += nl;
       }
    }
 
-   List ret(1);
+   List post(nlvar);
+   for (int v = 0; v < nlvar; v ++) {
+      NumericVector alpha = la[v];
+      NumericVector beta = lb[v];
+      post[v] = alpha + beta;
+   }
+
+   List ret;
+   ret["rho"] = lrho;
+   ret["tau"] = ltau;
+   ret["pi"] = lpi;
+   ret["post"] = post;
+   ret["llik"] = llik;
+
    return ret;
 }
 
@@ -349,10 +393,10 @@ List treeFit(
 void upRecS(
    double *nbeta, double *jbeta, double *beta,
    double *prv, double *lp,
-   int nlv, int nl, int *nk
+   int nlvar, int nl, int *nk
 ) {
    double nu = 0;
-   for (int j = 0; j < nlv; j ++) {
+   for (int j = 0; j < nlvar; j ++) {
       for (int l = 0; l < nl; l ++) {
          double mll = 0;
          for (int k = 0; k < nk[j]; k ++)
@@ -367,9 +411,9 @@ void upRecS(
       beta += nk[j];
    }
 
-   for (int l = 0; l < nlv; l ++)
+   for (int l = 0; l < nlvar; l ++)
       nu += exp(nbeta[l]);
-   for (int l = 0; l < nlv; l ++)
+   for (int l = 0; l < nlvar; l ++)
       nbeta[l] -= nu;
 }
 
@@ -408,69 +452,10 @@ List test1(
       int *vi = v[i];
       for (int j = 0; j < k[i]; j ++) {
          for (int m = 0; m < k[i]; m ++) {
-            vi[m] = j;
+            vi[m] = i * j * m;
          }
          vi += k[i];
       }
    }
    return l;
-}
-
-// [[Rcpp::export]]
-NumericVector test2(
-      int n, IntegerVector k
-) {
-   NumericVector l(sum(k * k));
-   IntegerVector index(n);
-
-   int ind = 0;
-   for (int i = 0; i < n; i ++) {
-      index[i] = ind;
-      ind += k[i] * k[i];
-   }
-
-   for (int i = 0; i < n; i ++) {
-      for (int j = 0; j < k[i]; j ++) {
-         for (int m = 0; m < k[i]; m ++) {
-            l[index[i] + m + j * k[i]] = j;
-         }
-      }
-   }
-
-   return l;
-}
-
-// [[Rcpp::export]]
-NumericVector t1(
-      int I, int J, IntegerVector Jv, int niter
-) {
-   NumericVector v(J);
-   double *vp = v.begin();
-
-   for (int iter = 0; iter < niter; iter ++) {
-      for (int i = 0; i < I; i ++) {
-         for (int j = 0; j < J; j ++) {
-            vp[j] += R::rnorm(0, 1);
-         }
-      }
-   }
-
-   return v;
-}
-// [[Rcpp::export]]
-NumericVector t2(
-      int I, int J, IntegerVector Jv, int niter
-) {
-   NumericVector v(J);
-   double *vp = v.begin();
-
-   for (int iter = 0; iter < niter; iter ++) {
-      for (int i = 0; i < I; i ++) {
-         for (int j = 0; j < Jv[i]; j ++) {
-            vp[j] += R::rnorm(0, 1);
-         }
-      }
-   }
-
-   return v;
 }
