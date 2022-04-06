@@ -3,14 +3,12 @@
 using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
-// [[Rcpp::export]]
 NumericVector pi_gnr(int k, int n) {
    NumericVector p(k);
    p = runif(k, 0, 1);
    return rep(log(p / sum(p)), n);
 }
 
-// [[Rcpp::export]]
 NumericVector tau_gnr(int l, int k, int n) {
    NumericVector p(k);
    NumericVector pv(k * l);
@@ -28,7 +26,6 @@ NumericVector tau_gnr(int l, int k, int n) {
 }
 
 
-// [[Rcpp::export]]
 NumericVector rho_gnr(int k, IntegerVector ncat) {
    NumericVector pv(k * sum(ncat));
    double *ppv = pv.begin();
