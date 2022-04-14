@@ -4,34 +4,101 @@ using namespace Rcpp;
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
-NumericVector pi_gnr(int k, int n) {
-   return rep(-log(k), k * n);
+NumericVector pi_gnr(int nk, int nobs) {
+   return rep(-log(nk), nk * nobs);
 }
 
 // [[Rcpp::export]]
-NumericVector tau_gnr(int l, int k, int n) {
-   NumericVector p(k);
-   NumericVector pv(k * l);
+NumericVector beta0_gnr(int nk, int ncov) {
+   return rep(0.0, (nk - 1) * ncov);
+}
+
+// [[Rcpp::export]]
+NumericVector beta2pi(
+   NumericVector beta, NumericVector x,
+   int nk, int np, int nobs
+) {
+   NumericVector pi(nobs * nk);
+   double *ppi = pi.begin();
+   double *px = x.begin();
+   for (int i = 0; i < nobs; i ++) {
+      double sl = 1;
+      double *pb = beta.begin();
+      for (int k = 0; k < nk - 1; k ++) {
+         for (int p = 0; p < np; p ++) {
+            ppi[k] += pb[p] * px[p];
+         }
+         sl += exp(ppi[k]);
+         pb += np;
+      }
+
+      for (int k = 0; k < nk; k ++) {
+         ppi[k] -= log(sl);
+      }
+      ppi += nk;
+      px  += np;
+   }
+   return pi;
+}
+
+// [[Rcpp::export]]
+NumericVector tau_gnr(int nl, int nk, int nobs) {
+   NumericVector p(nk);
+   NumericVector pv(nk * nl);
    double *ppv = pv.begin();
 
-   for (int i = 0; i < l; i ++) {
-      p = runif(k, 0, 1);
-      for (int j = 0; j < k; j ++) {
+   for (int i = 0; i < nl; i ++) {
+      p = runif(nk, 0, 1);
+      for (int j = 0; j < nk; j ++) {
          ppv[j] = log(p[j] / sum(p));
       }
-      ppv += k;
+      ppv += nk;
    }
 
-   return rep(pv, n);
+   return rep(pv, nobs);
 }
 
 // [[Rcpp::export]]
-NumericVector rho_gnr(int k, IntegerVector ncat) {
-   NumericVector pv(k * sum(ncat));
+NumericVector beta1_gnr(int nk, int nl, int ncov) {
+   return rep(0.0, (nk - 1) * nl * ncov);
+}
+
+// [[Rcpp::export]]
+NumericVector beta2tau(
+      NumericVector beta, NumericVector x,
+      int nk, int nl, int np, int nobs
+) {
+   NumericVector pi(nobs * nk * nl);
+   double *ppi = pi.begin();
+   double *px = x.begin();
+   for (int i = 0; i < nobs; i ++) {
+      double *pb = beta.begin();
+      for (int l = 0; l < nl; l ++) {
+         double sl = 1;
+         for (int k = 0; k < nk - 1; k ++) {
+            for (int p = 0; p < np; p ++) {
+               ppi[k] += pb[p] * px[p];
+            }
+            sl += exp(ppi[k]);
+            pb += np;
+         }
+         for (int k = 0; k < nk; k ++) {
+            ppi[k] -= log(sl);
+         }
+         ppi += nk;
+      }
+      px += np;
+   }
+   return pi;
+}
+
+// [[Rcpp::export]]
+NumericVector rho_gnr(int nk, IntegerVector ncat) {
+   NumericVector pv(nk * sum(ncat));
    double *ppv = pv.begin();
 
    for (int m = 0; m < ncat.length(); m ++) {
-      for (int i = 0; i < k; i ++) {
+      for (int i = 0; i < nk; i ++) {
          NumericVector p = runif(ncat[m], 0, 1);
          for (int j = 0; j < ncat[m]; j ++) {
             ppv[j] = log(p[j] / sum(p));
@@ -44,37 +111,37 @@ NumericVector rho_gnr(int k, IntegerVector ncat) {
 
 // [[Rcpp::export]]
 IntegerVector root_gnr(
-      int n, int k,
+      int nobs, int nk,
       Nullable<NumericVector> prob = R_NilValue
 ) {
    NumericVector pi;
    if (prob.isNull()) {
-      pi = exp(pi_gnr(k, 1));
+      pi = exp(pi_gnr(nk, 1));
    } else {
       pi = as<NumericVector>(prob);
    }
 
-   IntegerVector cls = sample(k, n, true, pi);
+   IntegerVector cls = sample(nk, nobs, true, pi);
    return cls;
 }
 
 // [[Rcpp::export]]
 IntegerVector cls_gnr(
-   int n, int k, int l, IntegerVector uc,
+   int nobs, int nk, int nl, IntegerVector vc,
    Nullable<NumericVector> prob = R_NilValue
 ) {
    NumericVector tau;
    if (prob.isNull()) {
-      tau = exp(tau_gnr(l, k, 1));
+      tau = exp(tau_gnr(nl, nk, 1));
    } else {
       tau = as<NumericVector>(prob);
    }
 
    NumericVector tau_l;
-   IntegerVector cls(n);
-   for (int i = 0; i < n; i ++) {
-      tau_l = tau[seq_len(k) + k * (uc[i] - 1) - 1];
-      cls[i] = sample(k, 1, false, tau_l)[0];
+   IntegerVector cls(nobs);
+   for (int i = 0; i < nobs; i ++) {
+      tau_l = tau[seq_len(nk) + nk * (vc[i] - 1) - 1];
+      cls[i] = sample(nk, 1, false, tau_l)[0];
    }
 
    return cls;
@@ -82,28 +149,28 @@ IntegerVector cls_gnr(
 
 // [[Rcpp::export]]
 IntegerVector y_gnr(
-   int n, int k, IntegerVector ncat,
+   int nobs, int nk, IntegerVector ncat,
    IntegerVector cls,
    Nullable<NumericVector> prob = R_NilValue
 ) {
    NumericVector rho;
    if (prob.isNull()) {
-      rho = exp(rho_gnr(k, ncat));
+      rho = exp(rho_gnr(nk, ncat));
    } else {
       rho = as<NumericVector>(prob);
    }
 
    int pos = 0;
-   int p = ncat.length();
+   int nvar = ncat.length();
    NumericVector rho_m;
-   IntegerVector y(n * p);
-   for (int i = 0; i < n; i ++) {
+   IntegerVector y(nk * nvar);
+   for (int i = 0; i < nobs; i ++) {
       pos = 0;
       int c = cls[i] - 1;
-      for (int m = 0; m < p; m ++) {
+      for (int m = 0; m < nvar; m ++) {
          rho_m = rho[seq_len(ncat[m]) + pos + c * ncat[m] - 1];
-         y[i * p + m] = sample(ncat[m], 1, false, rho_m)[0];
-         pos += k * ncat[m];
+         y[i * nvar + m] = sample(ncat[m], 1, false, rho_m)[0];
+         pos += nk * ncat[m];
       }
    }
 
@@ -114,8 +181,8 @@ IntegerVector y_gnr(
 // NumericVector y_gnr(
 //    int nobs,
 //    IntegerVector nvar, List ncat,
-//    IntegerMatrix links, IntegerVector cstr_lk,
-//    IntegerVector leafs, IntegerVector cstr_lf,
+//    IntegerMatrix links, IntegerVector cstr_edge,
+//    IntegerVector leafs, IntegerVector cstr_leaf,
 //    int root,
 //    IntegerVector nc,
 //    Nullable<NumericVector> pi,
@@ -263,55 +330,53 @@ void cumPosty(
 // w (nobs)
 // nvar (# measured lv)
 // ncat (sum(nvar))
-// links (nlink)
+// links (nedge)
 // constr (# measured lv)
 // ncls (nlv)
 // [[Rcpp::export]]
 List treeFit(
-   IntegerVector y, int nobs, int nlv,
-   IntegerVector nvar, List ncat,
-   int root, IntegerVector leaf, IntegerVector cstr_lf,
-   IntegerMatrix links, IntegerVector cstr_lk,
-   IntegerVector nc, IntegerVector nclf,
-   IntegerVector ncl, IntegerVector ncu,
+   IntegerVector y, int nobs, IntegerVector nvar, List ncat,
+   int nlv, int root, IntegerVector leaf, IntegerVector ulv, IntegerVector vlv,
+   IntegerVector cstr_leaf, IntegerVector cstr_edge,
+   IntegerVector nclass, IntegerVector ncleaf, IntegerVector nuclass, IntegerVector nvclass,
    int max_iter, double tol
 ) {
    int *py;
    int nleaf = leaf.length();
-   int nlink = links.nrow();
-   int nuleaf = nclf.length();
-   int nulink = ncl.length();
+   int nedge = ulv.length();
+   int nuleaf = ncleaf.length();
+   int nuedge = nvclass.length();
 
    List lst_rho(nuleaf);
-   List lst_tau(nulink);
+   List lst_tau(nuedge);
    List lst_rho_d(nuleaf);
    List lst_rho_n(nuleaf);
-   List lst_ntau(nulink);
-   NumericVector pi = pi_gnr(nc[root], nobs);
+   List lst_ntau(nuedge);
+   NumericVector pi = pi_gnr(nclass[root], nobs);
    std::vector<double*> ptr_rho(nuleaf);
-   std::vector<double*> ptr_tau(nulink);
+   std::vector<double*> ptr_tau(nuedge);
    std::vector<double*> ptr_rho_d(nuleaf);
    std::vector<double*> ptr_rho_n(nuleaf);
-   std::vector<double*> ptr_ntau(nulink);
+   std::vector<double*> ptr_ntau(nuedge);
 
    List lst_a(nlv);
    List lst_b(nlv);
-   List lst_j(nlink);
+   List lst_j(nedge);
    std::vector<double*> ptr_a(nlv);
    std::vector<double*> ptr_b(nlv);
-   std::vector<double*> ptr_j(nlink);
+   std::vector<double*> ptr_j(nedge);
 
    List lst_post(nlv);
-   List lst_joint(nlink);
+   List lst_joint(nedge);
    NumericVector ll(nobs);
    std::vector<double*> ptr_post(nlv);
-   std::vector<double*> ptr_joint(nlink);
+   std::vector<double*> ptr_joint(nedge);
 
    for (int v = 0; v < nuleaf; v ++) {
       IntegerVector ncatv = ncat[v];
-      NumericVector lrho = rho_gnr(nclf[v], ncatv);
-      NumericVector rhod(nclf[v] * sum(ncatv));
-      NumericVector rhon(nclf[v] * nvar[v]);
+      NumericVector lrho = rho_gnr(ncleaf[v], ncatv);
+      NumericVector rhod(ncleaf[v] * sum(ncatv));
+      NumericVector rhon(ncleaf[v] * nvar[v]);
       ptr_rho[v] = lrho.begin();
       ptr_rho_d[v] = rhod.begin();
       ptr_rho_n[v] = rhon.begin();
@@ -320,29 +385,29 @@ List treeFit(
       lst_rho_n[v] = rhon;
    }
 
-   for (int d = 0; d < nulink; d ++) {
-      NumericVector ltau = tau_gnr(ncl[d], ncu[d], nobs);
-      NumericVector ntau(ncl[d] * ncu[d] * nobs);
+   for (int d = 0; d < nuedge; d ++) {
+      NumericVector ltau = tau_gnr(nuclass[d], nvclass[d], nobs);
+      NumericVector ntau(nuclass[d] * nvclass[d] * nobs);
       ptr_tau[d] = ltau.begin();
       ptr_ntau[d] = ntau.begin();
       lst_tau[d] = ltau;
       lst_ntau[d] = ntau;
    }
 
-   for (int d = 0; d < nlink; d ++) {
-      int lk = cstr_lk[d];
-      NumericMatrix joint(ncl[lk] * ncu[lk], nobs);
+   for (int d = 0; d < nedge; d ++) {
+      int lk = cstr_edge[d];
+      NumericMatrix joint(nuclass[lk] * nvclass[lk], nobs);
       ptr_joint[d] = joint.begin();
       lst_joint[d] = joint;
-      NumericVector jbeta(ncu[lk] * nobs);
+      NumericVector jbeta(nvclass[lk] * nobs);
       ptr_j[d] = jbeta.begin();
       lst_j[d] = jbeta;
    }
 
    for (int v = 0; v < nlv; v ++) {
-      NumericVector post(nc[v]);
-      NumericVector alpha(nc[v] * nobs);
-      NumericVector beta(nc[v] * nobs);
+      NumericVector post(nclass[v]);
+      NumericVector alpha(nclass[v] * nobs);
+      NumericVector beta(nclass[v] * nobs);
       ptr_post[v] = post.begin();
       ptr_a[v] = alpha.begin();
       ptr_b[v] = beta.begin();
@@ -355,7 +420,7 @@ List treeFit(
    double currll = R_NegInf;
    double lastll = R_NegInf;
    double dll = R_PosInf;
-   while (iter < max_iter || (dll > tol)) {
+   while ( (iter < max_iter) && (dll > tol) ) {
       iter ++;
       lastll = currll;
 
@@ -363,17 +428,17 @@ List treeFit(
       // initiate beta
       py = y.begin();
       for (int v = 0; v < nleaf; v ++) {
-         msrPrd(py, ptr_rho[cstr_lf[v]], ptr_b[leaf[v]], nclf[cstr_lf[v]],
-                nobs, nvar[cstr_lf[v]], ncat[cstr_lf[v]]);
-         py += nvar[cstr_lf[v]] * nobs;
+         msrPrd(py, ptr_rho[cstr_leaf[v]], ptr_b[leaf[v]], ncleaf[cstr_leaf[v]],
+                nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
+         py += nvar[cstr_leaf[v]] * nobs;
       }
 
       // upward recursion
-      for (int d = 0; d < nlink; d ++) {
-         int u = links(d, 0);
-         int v = links(d, 1);
-         upRec(ptr_b[v], ptr_j[d], ptr_b[u],
-               ptr_tau[cstr_lk[d]], nobs, nc[u], nc[v]);
+      for (int d = 0; d < nedge; d ++) {
+         int u = ulv[d];
+         int v = vlv[d];
+         upRec(ptr_b[v], ptr_j[d], ptr_b[u], ptr_tau[cstr_edge[d]],
+               nobs, nclass[u], nclass[v]);
       }
 
       // initiate alpha
@@ -383,64 +448,62 @@ List treeFit(
       double *post1 = ptr_post[root];
       for (int i = 0; i < nobs; i ++) {
          double lik = 0;
-         for (int k = 0; k < nc[root]; k ++) {
+         for (int k = 0; k < nclass[root]; k ++) {
             post1[k] = alpha1[k] + beta1[k];
             lik += exp(post1[k]);
          }
          ll[i] = log(lik);
          currll += ll[i];
 
-         for (int k = 0; k < nc[root]; k ++) {
+         for (int k = 0; k < nclass[root]; k ++) {
             post1[k] -= ll[i];
          }
 
-         alpha1 += nc[root];
-         beta1  += nc[root];
-         post1  += nc[root];
+         alpha1 += nclass[root];
+         beta1  += nclass[root];
+         post1  += nclass[root];
       }
 
       // Downward recursion
-      for (int d = nlink - 1; d == 0; d --) {
-         int u = links(d, 0);
-         int v = links(d, 1);
-         int nl = ncl[cstr_lk[d]];
-         int nk = ncu[cstr_lk[d]];
+      for (int d = nedge - 1; d == 0; d --) {
+         int u = ulv[d];
+         int v = vlv[d];
          dnRec(ptr_a[u], ptr_a[v], ptr_b[u], ptr_b[v], ptr_j[d],
-               nobs, nk, nl, ptr_tau[cstr_lk[d]],
+               nobs, nclass[u], nclass[v], ptr_tau[cstr_edge[d]],
                ptr_post[u], ptr_joint[d], ll);
       }
 
       // (maximization-step)
       // pi updates
-      NumericVector new_pi(nc[root]);
+      NumericVector new_pi(nclass[root]);
       double *post = ptr_post[root];
       for (int i = 0; i < nobs; i ++) {
-         for (int k = 0; k < nc[root]; k ++) {
+         for (int k = 0; k < nclass[root]; k ++) {
             new_pi[k] += post[k];
          }
-         post += nc[root];
+         post += nclass[root];
       }
-      pi = rep(new_pi / sum(new_pi), nobs);
+      pi = rep(log(new_pi / sum(new_pi)), nobs);
 
       // tau updates
-      for (int d = 0; d < nlink; d ++) {
-         NumericVector ntau = lst_ntau[cstr_lk[d]];
+      for (int d = 0; d < nedge; d ++) {
+         NumericVector ntau = lst_ntau[cstr_edge[d]];
          NumericMatrix joint = lst_joint[d];
          NumericVector jsum = rowSums(joint);
          ntau += jsum;
       }
-      for (int d = 0; d < nulink; d ++) {
+      for (int d = 0; d < nuedge; d ++) {
          double *ptau = ptr_ntau[d];
-         for (int l = 0; l < ncu[d]; l ++) {
+         for (int l = 0; l < nvclass[d]; l ++) {
             double sl = 0;
-            for (int k = 0; k < ncl[d]; k ++) {
+            for (int k = 0; k < nuclass[d]; k ++) {
                sl += exp(ptau[k]);
             }
             sl = log(sl);
-            for (int k = 0; k < ncl[d]; k ++) {
+            for (int k = 0; k < nuclass[d]; k ++) {
                ptau[k] -= sl;
             }
-            ptau += ncl[d];
+            ptau += nuclass[d];
          }
          NumericVector ntau = lst_ntau[d];
          lst_tau[d] = rep(ntau, nobs);
@@ -448,25 +511,25 @@ List treeFit(
 
       py = y.begin();
       for (int v = 0; v < nleaf; v ++) {
-         cumPosty(ptr_rho_d[v], ptr_rho_n[v], py, nobs,
-                  nvar[cstr_lf[v]], ncat[cstr_lf[v]], nclf[v],
-                  ptr_post[v], ptr_rho[cstr_lf[v]]);
+         cumPosty(ptr_rho_d[cstr_leaf[v]], ptr_rho_n[cstr_leaf[v]],
+                  py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
+                  ncleaf[v], ptr_post[v], ptr_rho[cstr_leaf[v]]);
          py += nobs * nvar[v];
       }
       for (int v = 0; v < nuleaf; v ++) {
          double *rho = ptr_rho[v];
-         double *rhon = ptr_rho_n[v];
-         double *rhod = ptr_rho_d[v];
+         double *numer = ptr_rho_n[v];
+         double *denom = ptr_rho_d[v];
          IntegerVector ncatv = ncat[v];
          for (int m = 0; m < nvar[v]; m ++) {
-            for (int k = 0; k < nclf[v]; k ++) {
+            for (int k = 0; k < ncleaf[v]; k ++) {
                for (int r = 0; r < ncatv[m]; r ++) {
-                  rho[r] = log(rhon[r] / rhod[k]);
+                  rho[r] = log(numer[r] / denom[k]);
                }
                rho  += ncatv[m];
-               rhon += ncatv[m];
+               numer += ncatv[m];
             }
-            rhod += nclf[v];
+            denom += ncleaf[v];
          }
       }
 
@@ -478,15 +541,15 @@ List treeFit(
    double loglik = currll;
    List posterior(nlv);
    for (int v = 0; v < nlv; v ++) {
-      NumericMatrix post(nobs, nc[v]);
+      NumericMatrix post(nobs, nclass[v]);
       double *alpha = ptr_a[v];
       double *beta  = ptr_b[v];
       for (int i = 0; i < nobs; i ++) {
-         for (int k = 0; k < nc[v]; k ++) {
+         for (int k = 0; k < nclass[v]; k ++) {
             post(i, k) = exp(alpha[k] + beta[k] - ll[i]);
          }
-         alpha += nc[v];
-         beta  += nc[v];
+         alpha += nclass[v];
+         beta  += nclass[v];
       }
       posterior[v] = post;
    }
