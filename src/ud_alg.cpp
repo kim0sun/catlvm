@@ -177,37 +177,6 @@ IntegerVector y_gnr(
    return y;
 }
 
-// // [[Rcpp::export]]
-// NumericVector y_gnr(
-//    int nobs,
-//    IntegerVector nvar, List ncat,
-//    IntegerMatrix links, IntegerVector cstr_edge,
-//    IntegerVector leafs, IntegerVector cstr_leaf,
-//    int root,
-//    IntegerVector nc,
-//    Nullable<NumericVector> pi,
-//    Nullable<List> tau,
-//    Nullable<NumericVector> rho
-// ) {
-//    int nlv = nc.length();
-//    if (pi.isNull()) NumericVector pi = pi_gnr(nc[root], 1);
-//    if (tau.isNull()) {
-//       List tau(links.nrow());
-//       for (int d = 0; d < links.nrow(); d ++) {
-//          NumericVector tau_d = tau_gnr(nc[links(d, 1)], nc[links(d, 0)], 1);
-//          tau[d] = tau_d;
-//       }
-//    }
-//    if (rho.isNull()) {
-//       for (int v = 0; v < leafs.length(); v ++) {
-//
-//       }
-//    }
-//
-//    List cls(nlv);
-//    cls[root] = cls_gnr(nc[root], nobs, pi);
-// }
-
 
 // measured lv : beta[nk * obs] / alpha[nk * obs]
 // middle lv : beta[nl * obs] / jbeta[nk * nl * obs] / alpha[nk * obs]

@@ -28,12 +28,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Hierarchical latent class model {#hlca}
 $$
-\xi_{u}(i) = \textsf{Pr}\left[ \mathbf{Y}^{(u)} = \mathbf{y} | C_u = i \right] = 
-\prod_{m = 1}^{M} \prod_{k}^{r_m} \rho_{mk|i}^{I(y_m = k)},
+\xi_{u}(k) = \textsf{Pr}\left[ \mathbf{Y}^{(u)} = \mathbf{y} | C_u = k \right] = 
+\prod_{m = 1}^{M} \prod_{r = 1}^{R_m} \rho_{mr|k}^{I(y_m = r)},
 \quad
-\tau_{i, j}^{(\rho(u), u)} = \textsf{Pr}\left[ C_u = j|C_{\rho(u)} = i \right],
+\tau_{\rho(u), u}(l, k) = \textsf{Pr}\left[ C_u = k|C_{\rho(u)} = l \right],
 \quad \text{and} \quad
-\pi_{i} = \textsf{Pr}(C_1 = i)
+\pi(k) = \textsf{Pr}(C_1 = k)
 $$
 Upward recursion
 $$

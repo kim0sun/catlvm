@@ -1,9 +1,10 @@
-simulate.catlvm = function(
+simulate.catlvStruct = function(
    object, n = 500, pi = NULL, tau = NULL, rho = NULL
 ) {
    root = object$root
    leaf = object$leaf
-   links = object$links
+   ulv = object$ulv
+   vlv = object$vlv
    cstr_lf = object$cstr_lf
    cstr_lk = object$cstr_lk
 
@@ -36,8 +37,8 @@ simulate.catlvm = function(
 
    cls = list()
    cls[[root]] = root_gnr(n, nc[root], pi)
-   for (d in nrow(links):1) {
-      u = links[d, 1]; v = links[d, 2]
+   for (d in rev(seq(ulv))) {
+      u = ulv[d]; v = vlv[d]
       tau_d = tau[[cstr_lk[d]]]
       cls[[u]] = cls_gnr(n, nc[u], nc[v], cls[[v]], tau_d);
    }
@@ -50,7 +51,7 @@ simulate.catlvm = function(
    y
 }
 
-str_catlvm = function(formulae) {
+?structure = function(formulae) {
 
 }
 
