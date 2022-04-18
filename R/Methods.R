@@ -1,4 +1,4 @@
-simulate.catlvStruct = function(
+simulate.catlvm = function(
    object, n = 500, pi = NULL, tau = NULL, rho = NULL
 ) {
    root = object$root
@@ -51,7 +51,47 @@ simulate.catlvStruct = function(
    y
 }
 
-?structure = function(formulae) {
+catlvm = function(
+   measurementModel = NULL,
+   latentStructure = NULL,
+   constraints = NULL,
+   data = NULL
+) {
+
+   class(model) = "catlvm"
+}
+
+estimate.catlvm = function(
+   x,  ...
+) {
+
+   class(res) = c("catlvm", "catlvmFitted")
+}
+
+npar.catlvm = function(object, ...) {
 
 }
 
+nobs.catlvm = function(object, ...) {
+
+}
+
+print.catlvm = function(x, ...) {
+
+}
+
+summary.catlvm = function(object, ...) {
+
+}
+
+logLik.catlvm = function(object, ...) {
+
+}
+
+coef.catlvm = function(object, ...) {
+
+}
+
+vcov.catlvm = function(object, ...) {
+
+}
