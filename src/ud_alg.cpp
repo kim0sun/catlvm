@@ -303,35 +303,45 @@ void cumPosty(
 // constr (# measured lv)
 // ncls (nlv)
 // [[Rcpp::export]]
+NumericVector aa(
+   NumericVector x, int l
+) {
+   NumericVector res(l);
+   for (int i = 0; i < l; i ++) {
+      res[i] = x[i];
+   }
+   return res;
+}
+
 List treeFit(
    IntegerVector y, int nobs, IntegerVector nvar, List ncat,
    int nlv, IntegerVector root, IntegerVector leaf,
    IntegerVector ulv, IntegerVector vlv,
    IntegerVector cstr_root, IntegerVector cstr_leaf, IntegerVector cstr_edge,
-   IntegerVector nclass, IntegerVector ncroot, IntegerVector ncleaf,
-   IntegerVector nuclass, IntegerVector nvclass,
+   IntegerVector nclass, IntegerVector nclass_root, IntegerVector nclass_leaf,
+   IntegerVector nclass_u, IntegerVector nclass_v,
    int max_iter, double tol
 ) {
    int *py;
    int nroot = root.length();
    int nleaf = leaf.length();
    int nedge = ulv.length();
-   int nuroot = ncroot.length();
-   int nuleaf = ncleaf.length();
-   int nuedge = nvclass.length();
+   int nroot_unique = nclass_root.length();
+   int nleaf_unique = nclass_leaf.length();
+   int nedge_unique = nclass_v.length();
 
-   List lst_pi(nuroot);
-   List lst_rho(nuleaf);
-   List lst_tau(nuedge);
-   List lst_rho_d(nuleaf);
-   List lst_rho_n(nuleaf);
-   List lst_ntau(nuedge);
-   std::vector<double*> ptr_pi(nuroot);
-   std::vector<double*> ptr_rho(nuleaf);
-   std::vector<double*> ptr_tau(nuedge);
-   std::vector<double*> ptr_rho_d(nuleaf);
-   std::vector<double*> ptr_rho_n(nuleaf);
-   std::vector<double*> ptr_ntau(nuedge);
+   List lst_pi(nroot_unique);
+   List lst_rho(nleaf_unique);
+   List lst_tau(nedge_unique);
+   List lst_rho_d(nleaf_unique);
+   List lst_rho_n(nleaf_unique);
+   List lst_ntau(nedge_unique);
+   std::vector<double*> ptr_pi(nroot_unique);
+   std::vector<double*> ptr_rho(nleaf_unique);
+   std::vector<double*> ptr_tau(nedge_unique);
+   std::vector<double*> ptr_rho_d(nleaf_unique);
+   std::vector<double*> ptr_rho_n(nleaf_unique);
+   std::vector<double*> ptr_ntau(nedge_unique);
 
    List lst_a(nlv);
    List lst_b(nlv);
@@ -346,17 +356,17 @@ List treeFit(
    std::vector<double*> ptr_post(nlv);
    std::vector<double*> ptr_joint(nedge);
 
-   for (int r = 0; r < nuroot; r ++) {
-      NumericVector pi = pi_gnr(ncroot[r], nobs);
+   for (int r = 0; r < nroot_unique; r ++) {
+      NumericVector pi = pi_gnr(nclass_root[r], nobs);
       ptr_pi[r] = pi.begin();
       lst_pi[r] = pi;
    }
 
-   for (int v = 0; v < nuleaf; v ++) {
+   for (int v = 0; v < nleaf_unique; v ++) {
       IntegerVector ncatv = ncat[v];
-      NumericVector lrho = rho_gnr(ncleaf[v], ncatv);
-      NumericVector rhod(ncleaf[v] * sum(ncatv));
-      NumericVector rhon(ncleaf[v] * nvar[v]);
+      NumericVector lrho = rho_gnr(nclass_leaf[v], ncatv);
+      NumericVector rhod(nclass_leaf[v] * sum(ncatv));
+      NumericVector rhon(nclass_leaf[v] * nvar[v]);
       ptr_rho[v] = lrho.begin();
       ptr_rho_d[v] = rhod.begin();
       ptr_rho_n[v] = rhon.begin();
@@ -365,9 +375,9 @@ List treeFit(
       lst_rho_n[v] = rhon;
    }
 
-   for (int d = 0; d < nuedge; d ++) {
-      NumericVector ltau = tau_gnr(nuclass[d], nvclass[d], nobs);
-      NumericVector ntau(nuclass[d] * nvclass[d] * nobs);
+   for (int d = 0; d < nedge_unique; d ++) {
+      NumericVector ltau = tau_gnr(nclass_u[d], nclass_v[d], nobs);
+      NumericVector ntau(nclass_u[d] * nclass_v[d] * nobs);
       ptr_tau[d] = ltau.begin();
       ptr_ntau[d] = ntau.begin();
       lst_tau[d] = ltau;
@@ -376,10 +386,10 @@ List treeFit(
 
    for (int d = 0; d < nedge; d ++) {
       int lk = cstr_edge[d];
-      NumericMatrix joint(nuclass[lk] * nvclass[lk], nobs);
+      NumericMatrix joint(nclass_u[lk] * nclass_v[lk], nobs);
       ptr_joint[d] = joint.begin();
       lst_joint[d] = joint;
-      NumericVector jbeta(nvclass[lk] * nobs);
+      NumericVector jbeta(nclass_v[lk] * nobs);
       ptr_j[d] = jbeta.begin();
       lst_j[d] = jbeta;
    }
@@ -408,7 +418,7 @@ List treeFit(
       // initiate beta
       py = y.begin();
       for (int v = 0; v < nleaf; v ++) {
-         msrPrd(py, ptr_rho[cstr_leaf[v]], ptr_b[leaf[v]], ncleaf[cstr_leaf[v]],
+         msrPrd(py, ptr_rho[cstr_leaf[v]], ptr_b[leaf[v]], nclass_leaf[cstr_leaf[v]],
                 nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
          py += nvar[cstr_leaf[v]] * nobs;
       }
@@ -466,7 +476,7 @@ List treeFit(
             }
             post += nclass[root[r]];
          }
-         pi[r] = rep(log(new_pi / sum(new_pi)), nobs);
+         // lst_pi[r] = rep(log(new_pi / sum(new_pi)), nobs);
       }
 
       // tau updates
@@ -476,19 +486,19 @@ List treeFit(
          NumericVector jsum = rowSums(joint);
          ntau += jsum;
       }
-      for (int d = 0; d < nuedge; d ++) {
+      for (int d = 0; d < nedge_unique; d ++) {
          double *ptau = ptr_ntau[d];
-         for (int l = 0; l < nvclass[d]; l ++) {
+         for (int l = 0; l < nclass_v[d]; l ++) {
             double sl = 0;
-            for (int k = 0; k < nuclass[d]; k ++) {
+            for (int k = 0; k < nclass_u[d]; nclass_vk ++) {
                sl += exp(ptau[k]);
             }
             sl = log(sl);
-            for (int k = 0; k < nuclass[d]; k ++) {
+            for (int k = 0; k < nclass_u[d]; nclass_vk ++) {
                ptau[k] -= sl;
             }
-            ptau += nuclass[d];
-         }
+            ptau += nclass_u[d];
+         nclass_v}
          NumericVector ntau = lst_ntau[d];
          lst_tau[d] = rep(ntau, nobs);
       }
@@ -497,23 +507,23 @@ List treeFit(
       for (int v = 0; v < nleaf; v ++) {
          cumPosty(ptr_rho_d[cstr_leaf[v]], ptr_rho_n[cstr_leaf[v]],
                   py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
-                  ncleaf[v], ptr_post[v], ptr_rho[cstr_leaf[v]]);
+                  nclass_leaf[v], ptr_post[v], ptr_rho[cstr_leaf[v]]);
          py += nobs * nvar[v];
       }
-      for (int v = 0; v < nuleaf; v ++) {
+      for (int v = 0; v < nleaf_unique; v ++) {
          double *rho = ptr_rho[v];
          double *numer = ptr_rho_n[v];
          double *denom = ptr_rho_d[v];
          IntegerVector ncatv = ncat[v];
          for (int m = 0; m < nvar[v]; m ++) {
-            for (int k = 0; k < ncleaf[v]; k ++) {
+            for (int k = 0; k < nclass_leaf[v]; k ++) {
                for (int r = 0; r < ncatv[m]; r ++) {
                   rho[r] = log(numer[r] / denom[k]);
                }
                rho  += ncatv[m];
                numer += ncatv[m];
             }
-            denom += ncleaf[v];
+            denom += nclass_leaf[v];
          }
       }
 
@@ -539,7 +549,7 @@ List treeFit(
    }
 
    List ret;
-   ret["pi"] = pi;
+   ret["pi"] = lst_pi;
    ret["tau"] = lst_tau;
    ret["rho"] = lst_rho;
    ret["posterior"] = posterior;
@@ -596,10 +606,3 @@ void dnRecS(
    }
 }
 
-// [[Rcpp::export]]
-NumericMatrix test1(
-      NumericMatrix a, NumericMatrix b
-) {
-   a += b;
-   return a;
-}
