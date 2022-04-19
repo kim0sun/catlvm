@@ -305,23 +305,28 @@ void cumPosty(
 // [[Rcpp::export]]
 List treeFit(
    IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-   int nlv, int root, IntegerVector leaf, IntegerVector ulv, IntegerVector vlv,
-   IntegerVector cstr_leaf, IntegerVector cstr_edge,
-   IntegerVector nclass, IntegerVector ncleaf, IntegerVector nuclass, IntegerVector nvclass,
+   int nlv, IntegerVector root, IntegerVector leaf,
+   IntegerVector ulv, IntegerVector vlv,
+   IntegerVector cstr_root, IntegerVector cstr_leaf, IntegerVector cstr_edge,
+   IntegerVector nclass, IntegerVector ncroot, IntegerVector ncleaf,
+   IntegerVector nuclass, IntegerVector nvclass,
    int max_iter, double tol
 ) {
    int *py;
+   int nroot = root.length();
    int nleaf = leaf.length();
    int nedge = ulv.length();
+   int nuroot = ncroot.length();
    int nuleaf = ncleaf.length();
    int nuedge = nvclass.length();
 
+   List lst_pi(nuroot);
    List lst_rho(nuleaf);
    List lst_tau(nuedge);
    List lst_rho_d(nuleaf);
    List lst_rho_n(nuleaf);
    List lst_ntau(nuedge);
-   NumericVector pi = pi_gnr(nclass[root], nobs);
+   std::vector<double*> ptr_pi(nuroot);
    std::vector<double*> ptr_rho(nuleaf);
    std::vector<double*> ptr_tau(nuedge);
    std::vector<double*> ptr_rho_d(nuleaf);
@@ -340,6 +345,12 @@ List treeFit(
    NumericVector ll(nobs);
    std::vector<double*> ptr_post(nlv);
    std::vector<double*> ptr_joint(nedge);
+
+   for (int r = 0; r < nuroot; r ++) {
+      NumericVector pi = pi_gnr(ncroot[r], nobs);
+      ptr_pi[r] = pi.begin();
+      lst_pi[r] = pi;
+   }
 
    for (int v = 0; v < nuleaf; v ++) {
       IntegerVector ncatv = ncat[v];
@@ -411,26 +422,28 @@ List treeFit(
       }
 
       // initiate alpha
-      lst_a[root] = pi;
-      double *beta1 = ptr_b[root];
-      double *alpha1 = ptr_a[root];
-      double *post1 = ptr_post[root];
-      for (int i = 0; i < nobs; i ++) {
-         double lik = 0;
-         for (int k = 0; k < nclass[root]; k ++) {
-            post1[k] = alpha1[k] + beta1[k];
-            lik += exp(post1[k]);
-         }
-         ll[i] = log(lik);
-         currll += ll[i];
+      for (int r = 0; r < nroot; r ++) {
+         lst_a[root[r]] = lst_pi[cstr_root[r]];
+         double *beta1 = ptr_b[root[r]];
+         double *alpha1 = ptr_a[root[r]];
+         double *post1 = ptr_post[root[r]];
+         for (int i = 0; i < nobs; i ++) {
+            double lik = 0;
+            for (int k = 0; k < nclass[root[r]]; k ++) {
+               post1[k] = alpha1[k] + beta1[k];
+               lik += exp(post1[k]);
+            }
+            ll[i] = log(lik);
+            currll += ll[i];
 
-         for (int k = 0; k < nclass[root]; k ++) {
-            post1[k] -= ll[i];
-         }
+            for (int k = 0; k < nclass[root[r]]; k ++) {
+               post1[k] -= ll[i];
+            }
 
-         alpha1 += nclass[root];
-         beta1  += nclass[root];
-         post1  += nclass[root];
+            alpha1 += nclass[root[r]];
+            beta1  += nclass[root[r]];
+            post1  += nclass[root[r]];
+         }
       }
 
       // Downward recursion
@@ -444,15 +457,17 @@ List treeFit(
 
       // (maximization-step)
       // pi updates
-      NumericVector new_pi(nclass[root]);
-      double *post = ptr_post[root];
-      for (int i = 0; i < nobs; i ++) {
-         for (int k = 0; k < nclass[root]; k ++) {
-            new_pi[k] += post[k];
+      for (int r = 0; r < root.length(); r ++) {
+         NumericVector new_pi(nclass[root[r]]);
+         double *post = ptr_post[root[r]];
+         for (int i = 0; i < nobs; i ++) {
+            for (int k = 0; k < nclass[root[r]]; k ++) {
+               new_pi[k] += post[k];
+            }
+            post += nclass[root[r]];
          }
-         post += nclass[root];
+         pi[r] = rep(log(new_pi / sum(new_pi)), nobs);
       }
-      pi = rep(log(new_pi / sum(new_pi)), nobs);
 
       // tau updates
       for (int d = 0; d < nedge; d ++) {
