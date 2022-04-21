@@ -222,7 +222,7 @@ void msrPrd(
 // lp = [#class * #pclass]
 void upRec(
    double *beta, double *jbeta, double *lbeta,
-   double *tau, int nobs, int nl, int nk
+   const double *tau, int nobs, int nk, int nl
 ) {
    for (int i = 0; i < nobs; i ++) {
       for (int l = 0; l < nl; l ++) {
@@ -234,6 +234,7 @@ void upRec(
          jbeta[l] = log(ml);
          beta[l] += log(ml);
       }
+      lbeta += nk;
       jbeta += nl;
       beta  += nl;
    }
@@ -255,12 +256,12 @@ void dnRec(
          double val = 0;
          double svl = 0;
          for (int l = 0; l < nl; l ++) {
-            val = exp(tau[k + l * nk] + ualpha[l] + ubeta[l] - jbeta[l]);
-            joint[k + l * nk] += exp(val + beta[k] - ll[i]);
-            svl += val;
+            val = tau[k + l * nk] + ualpha[l] + ubeta[l] - jbeta[l];
+            joint[k + l * nk] = exp(val + beta[k] - ll[i]);
+            svl += exp(val);
          }
          alpha[k] = log(svl);
-         post[k] += exp(alpha[k] + beta[k] - ll[i]);
+         post[k] = alpha[k] + beta[k] - ll[i];
       }
       tau += nk * nl;
       joint += nk * nl; post += nk;
@@ -270,27 +271,29 @@ void dnRec(
 }
 
 void cumPosty(
-   const double *denom, const double *numer, int *y,
-   int nobs, int nvar, IntegerVector ncat, int nk,
-   double *post, double *old_rho
+   const double *denom, const double *numer,
+   int *y, int nobs, int nvar, IntegerVector ncat,
+   int nk, double *post, const double *old_rho
 ) {
    for (int i = 0; i < nobs; i ++) {
       double *dnm = (double *)denom;
       double *nmr = (double *)numer;
+      double *rho = (double *)old_rho;
       for (int m = 0; m < nvar; m ++) {
          for (int k = 0; k < nk; k ++) {
             dnm[k] += exp(post[k]);
             if (y[m] > 0) nmr[y[m] - 1] += exp(post[k]);
             else {
                for (int r = 0; r < ncat[m]; r ++) {
-                  nmr[r] += exp(post[k] + old_rho[r]);
+                  nmr[r] += exp(post[k] + rho[r]);
                }
             }
             nmr += ncat[m];
-            old_rho += ncat[m];
+            rho += ncat[m];
          }
          dnm += nk;
       }
+      post += nk;
       y += nvar;
    }
 }
@@ -307,31 +310,32 @@ List treeFit(
    IntegerVector y, int nobs, IntegerVector nvar, List ncat,
    int nlv, IntegerVector root, IntegerVector leaf,
    IntegerVector ulv, IntegerVector vlv,
-   IntegerVector cstr_root, IntegerVector cstr_leaf, IntegerVector cstr_edge,
-   IntegerVector nclass, IntegerVector nclass_root, IntegerVector nclass_leaf,
+   IntegerVector cstr_leaf, IntegerVector cstr_edge,
+   IntegerVector nclass, IntegerVector nclass_leaf,
    IntegerVector nclass_u, IntegerVector nclass_v,
    int max_iter, double tol
 ) {
-   Rcout << "initiated\n" << std::endl;
+   Rcout << "initiate" << std::endl;
    int *py;
    int nroot = root.length();
    int nleaf = leaf.length();
    int nedge = ulv.length();
-   int nroot_unique = nclass_root.length();
    int nleaf_unique = nclass_leaf.length();
    int nedge_unique = nclass_v.length();
 
-   List lst_pi(nroot_unique);
+   List lst_pi(nroot);
    List lst_tau(nedge_unique);
    List lst_rho(nleaf_unique);
    List lst_rho_d(nleaf_unique);
    List lst_rho_n(nleaf_unique);
+   List lst_npi(nroot);
    List lst_ntau(nedge_unique);
-   std::vector<double*> ptr_pi(nroot_unique);
+   std::vector<double*> ptr_pi(nroot);
    std::vector<double*> ptr_rho(nleaf_unique);
    std::vector<double*> ptr_tau(nedge_unique);
    std::vector<double*> ptr_rho_d(nleaf_unique);
    std::vector<double*> ptr_rho_n(nleaf_unique);
+   std::vector<double*> ptr_npi(nroot);
    std::vector<double*> ptr_ntau(nedge_unique);
 
    List lst_a(nlv);
@@ -347,19 +351,20 @@ List treeFit(
    std::vector<double*> ptr_post(nlv);
    std::vector<double*> ptr_joint(nedge);
 
-   for (int r = 0; r < nroot_unique; r ++) {
-      NumericVector pi = pi_gnr(nclass_root[r], nobs);
+   for (int r = 0; r < nroot; r ++) {
+      NumericVector pi = pi_gnr(nclass[root[r]], nobs);
+      NumericVector npi(nclass[root[r]]);
       ptr_pi[r] = pi.begin();
+      ptr_npi[r] = npi.begin();
       lst_pi[r] = pi;
+      lst_npi[r] = npi;
    }
-
-   Rcout << "pi \n" << std::endl;
 
    for (int v = 0; v < nleaf_unique; v ++) {
       IntegerVector ncatv = ncat[v];
       NumericVector lrho = rho_gnr(nclass_leaf[v], ncatv);
-      NumericVector rhod(nclass_leaf[v] * sum(ncatv));
-      NumericVector rhon(nclass_leaf[v] * nvar[v]);
+      NumericVector rhod(nclass_leaf[v] * nvar[v]);
+      NumericVector rhon(nclass_leaf[v] * sum(ncatv));
       ptr_rho[v] = lrho.begin();
       ptr_rho_d[v] = rhod.begin();
       ptr_rho_n[v] = rhon.begin();
@@ -368,18 +373,14 @@ List treeFit(
       lst_rho_n[v] = rhon;
    }
 
-   Rcout << "rho \n" << std::endl;
-
    for (int d = 0; d < nedge_unique; d ++) {
-      NumericVector ltau = tau_gnr(nclass_u[d], nclass_v[d], nobs);
-      NumericVector ntau(nclass_u[d] * nclass_v[d] * nobs);
-      ptr_tau[d] = ltau.begin();
+      NumericVector tau = tau_gnr(nclass_u[d], nclass_v[d], nobs);
+      NumericVector ntau(nclass_u[d] * nclass_v[d]);
+      ptr_tau[d] = tau.begin();
       ptr_ntau[d] = ntau.begin();
-      lst_tau[d] = ltau;
+      lst_tau[d] = tau;
       lst_ntau[d] = ntau;
    }
-
-   Rcout << "tau \n" << std::endl;
 
    for (int d = 0; d < nedge; d ++) {
       int lk = cstr_edge[d];
@@ -391,10 +392,8 @@ List treeFit(
       lst_j[d] = jbeta;
    }
 
-   Rcout << "joint \n" << std::endl;
-
    for (int v = 0; v < nlv; v ++) {
-      NumericVector post(nclass[v]);
+      NumericVector post(nclass[v] * nobs);
       NumericVector alpha(nclass[v] * nobs);
       NumericVector beta(nclass[v] * nobs);
       ptr_post[v] = post.begin();
@@ -405,17 +404,30 @@ List treeFit(
       lst_b[v] = beta;
    }
 
-   Rcout << "encoded \n" << std::endl;
 
    int iter = 0;
    double currll = R_NegInf;
    double lastll = R_NegInf;
    double dll = R_PosInf;
+   Rcout << "iter_start" << std::endl;
+
    while ( (iter < max_iter) && (dll > tol) ) {
       iter ++;
       lastll = currll;
 
-      Rcout << "iter_start \n" << std::endl;
+      // alpha, beta, post, joint cleaning
+      for (int v = 0; v < nlv; v ++) {
+         NumericVector alpha = lst_a[v];
+         NumericVector beta  = lst_b[v];
+         NumericVector post  = lst_post[v];
+         alpha.fill(0);
+         beta.fill(0);
+         post.fill(0);
+      }
+      for (int d = 0; d < nedge; d ++) {
+         NumericMatrix joint = lst_joint[d];
+         joint.fill(0);
+      }
 
       // (expectation-step)
       // initiate beta
@@ -426,8 +438,6 @@ List treeFit(
          py += nvar[cstr_leaf[v]] * nobs;
       }
 
-      Rcout << "beta initiated \n" << std::endl;
-
       // upward recursion
       for (int d = 0; d < nedge; d ++) {
          int u = ulv[d];
@@ -436,17 +446,18 @@ List treeFit(
                nobs, nclass[u], nclass[v]);
       }
 
-      Rcout << "upward done \n" << std::endl;
-
       // initiate alpha
+      ll.fill(0);
+      currll = 0;
       for (int r = 0; r < nroot; r ++) {
-         lst_a[root[r]] = lst_pi[cstr_root[r]];
+         double *pi = ptr_pi[r];
          double *beta1 = ptr_b[root[r]];
          double *alpha1 = ptr_a[root[r]];
          double *post1 = ptr_post[root[r]];
          for (int i = 0; i < nobs; i ++) {
             double lik = 0;
             for (int k = 0; k < nclass[root[r]]; k ++) {
+               alpha1[k] = pi[k];
                post1[k] = alpha1[k] + beta1[k];
                lik += exp(post1[k]);
             }
@@ -457,16 +468,24 @@ List treeFit(
                post1[k] -= ll[i];
             }
 
+            pi     += nclass[root[r]];
             alpha1 += nclass[root[r]];
             beta1  += nclass[root[r]];
             post1  += nclass[root[r]];
          }
       }
 
-      Rcout << "alpha initiated \n" << std::endl;
+      // List ret;
+      // ret["a"] = lst_a;
+      // ret["b"] = lst_b;
+      // ret["pi"] = lst_pi;
+      // ret["rho"] = lst_rho;
+      // ret["ll"] = ll;
+      // return ret;
+
 
       // Downward recursion
-      for (int d = nedge - 1; d == 0; d --) {
+      for (int d = nedge - 1; d > -1; d --) {
          int u = ulv[d];
          int v = vlv[d];
          dnRec(ptr_a[u], ptr_a[v], ptr_b[u], ptr_b[v], ptr_j[d],
@@ -474,78 +493,90 @@ List treeFit(
                ptr_post[u], ptr_joint[d], ll);
       }
 
-      Rcout << "downward done \n" << std::endl;
 
       // (maximization-step)
       // pi updates
-      for (int r = 0; r < root.length(); r ++) {
-         NumericVector new_pi(nclass[root[r]]);
+      for (int r = 0; r < nroot; r ++) {
+         double *pi = ptr_pi[root[r]];
+         NumericVector npi(nclass[root[r]]);
          double *post = ptr_post[root[r]];
          for (int i = 0; i < nobs; i ++) {
             for (int k = 0; k < nclass[root[r]]; k ++) {
-               new_pi[k] += post[k];
+               npi[k] += exp(post[k]);
             }
             post += nclass[root[r]];
          }
-         // lst_pi[r] = rep(log(new_pi / sum(new_pi)), nobs);
-      }
-
-      Rcout << "pi updated \n" << std::endl;
-
-      // tau updates
-      for (int d = 0; d < nedge; d ++) {
-         NumericVector ntau = lst_ntau[cstr_edge[d]];
-         NumericMatrix joint = lst_joint[d];
-         NumericVector jsum = rowSums(joint);
-         ntau += jsum;
-      }
-      for (int d = 0; d < nedge; d ++) {
-         double *ptau = ptr_ntau[d];
-         for (int l = 0; l < nclass_v[d]; l ++) {
-            double sl = 0;
-            for (int k = 0; k < nclass_u[d]; k ++) {
-               sl += exp(ptau[k]);
+         for (int i = 0; i < nobs; i ++) {
+            for (int k = 0; k < nclass[root[r]]; k ++) {
+               pi[k] = log(npi[k]) - log(sum(npi));
             }
-            sl = log(sl);
-            for (int k = 0; k < nclass_u[d]; k ++) {
-               ptau[k] -= sl;
-            }
-            ptau += nclass_u[d];
-         }
-         NumericVector ntau = lst_ntau[d];
-         lst_tau[d] = rep(ntau, nobs);
-      }
-
-      Rcout << "tau updated \n" << std::endl;
-
-      py = y.begin();
-      for (int v = 0; v < nleaf; v ++) {
-         cumPosty(ptr_rho_d[cstr_leaf[v]], ptr_rho_n[cstr_leaf[v]],
-                  py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
-                  nclass_leaf[v], ptr_post[v], ptr_rho[cstr_leaf[v]]);
-         py += nobs * nvar[v];
-      }
-      for (int v = 0; v < nleaf_unique; v ++) {
-         double *rho = ptr_rho[v];
-         double *numer = ptr_rho_n[v];
-         double *denom = ptr_rho_d[v];
-         IntegerVector ncatv = ncat[v];
-         for (int m = 0; m < nvar[v]; m ++) {
-            for (int k = 0; k < nclass_leaf[v]; k ++) {
-               for (int r = 0; r < ncatv[m]; r ++) {
-                  rho[r] = log(numer[r] / denom[k]);
-               }
-               rho  += ncatv[m];
-               numer += ncatv[m];
-            }
-            denom += nclass_leaf[v];
+            pi += nclass[root[r]];
          }
       }
+      //
+      // // tau updates
+      // for (int d = 0; d < nedge; d ++) {
+      //    NumericVector ntau = lst_ntau[cstr_edge[d]];
+      //    NumericMatrix joint = lst_joint[d];
+      //    NumericVector jsum = rowSums(joint);
+      //    ntau += jsum;
+      // }
+      // for (int d = 0; d < nedge_unique; d ++) {
+      //    double *tau  = ptr_tau[d];
+      //    double *ntau = ptr_ntau[d];
+      //    for (int l = 0; l < nclass_v[d]; l ++) {
+      //       double sl = 0;
+      //       for (int k = 0; k < nclass_u[d]; k ++) {
+      //          sl += ntau[k];
+      //       }
+      //       for (int k = 0; k < nclass_u[d]; k ++) {
+      //          ntau[k] /= sl;
+      //       }
+      //       ntau += nclass_u[d];
+      //    }
+      //
+      //    for (int i = 0; i < nobs; i ++) {
+      //       for (int l = 0; l < nclass_v[d]; l ++) {
+      //          for (int k = 0; k < nclass_u[d]; k ++) {
+      //             tau[k] = ntau[k + nclass_u[d] * l];
+      //          }
+      //          tau  += nclass_u[d];
+      //          // ntau += nclass_u[d];
+      //       }
+      //    }
+      // }
+      //
+      // // rho updates
+      // py = y.begin();
+      // for (int v = 0; v < nleaf; v ++) {
+      //    int u = leaf[v];
+      //    cumPosty(ptr_rho_d[cstr_leaf[v]], ptr_rho_n[cstr_leaf[v]],
+      //             py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
+      //             nclass[u], ptr_post[u], ptr_rho[cstr_leaf[v]]);
+      //    py += nobs * nvar[cstr_leaf[v]];
+      // }
+      //
+      // for (int v = 0; v < nleaf_unique; v ++) {
+      //    double *rho = ptr_rho[v];
+      //    double *numer = ptr_rho_n[v];
+      //    double *denom = ptr_rho_d[v];
+      //    IntegerVector ncatv = ncat[v];
+      //    for (int m = 0; m < nvar[v]; m ++) {
+      //       for (int k = 0; k < nclass_leaf[v]; k ++) {
+      //          for (int r = 0; r < ncatv[m]; r ++) {
+      //             rho[r] = log(numer[r] / denom[k]);
+      //          }
+      //          rho  += ncatv[m];
+      //          numer += ncatv[m];
+      //       }
+      //       denom += nclass_leaf[v];
+      //    }
+      // }
 
-      Rcout << "rho updated \n" << std::endl;
 
-      dll = (currll - lastll) / lastll;
-      Rcout << iter << ") ll: " << currll << " / diff: " << dll << "\n" << std::endl;
+      if (lastll == R_NegInf) dll = R_PosInf;
+      else dll = (currll - lastll);
+      Rcout << iter << ") ll: " << currll << " / diff: " << dll << std::endl;
    }
 
    // computes posterior probs
@@ -570,7 +601,10 @@ List treeFit(
    ret["tau"] = lst_tau;
    ret["rho"] = lst_rho;
    ret["posterior"] = posterior;
+   ret["alpha"] = lst_a;
+   ret["beta"] = lst_b;
    ret["loglik"] = loglik;
+   ret["logliks"] = ll;
 
    return ret;
 }

@@ -23,23 +23,27 @@ simulate.catlvm = function(
    ncat = NULL
    ncat = if (is.null(ncat)) lapply(nvar, function(x) rep(2, x)) else ncat
 
+   params = list()
    if (is.null(pi)) {
       pi = list()
       for (r in seq_along(root)) {
          pi[[r]] = exp(pi_gnr(nclass[root[r]], 1))
       }
+      params$pi = pi
    }
-   if (is.null(tau)) {
+   if (is.null(tau) && nedge_unique > 0) {
       tau = list()
-      for (d in seq(nedge_unique)) {
+      for (d in seq_len(nedge_unique)) {
          tau[[d]] = exp(matrix(tau_gnr(nclass_v[d], nclass_u[d], 1), nclass_v[d]))
       }
+      params$tau = tau
    }
    if (is.null(rho)) {
       rho = list()
-      for (v in seq(nleaf_unique)) {
+      for (v in seq_len(nleaf_unique)) {
          rho[[v]] = exp(rho_gnr(nclass_leaf[v], ncat[[v]]))
       }
+      params$rho = rho
    }
 
    cls = list()
@@ -47,13 +51,13 @@ simulate.catlvm = function(
       cls[[root[r]]] = root_gnr(n, nclass[root[r]], pi[[r]])
    }
 
-   for (d in rev(seq(ulv))) {
+   for (d in rev(seq_along(ulv))) {
       u = ulv[d]; v = vlv[d]
       tau_d = tau[[cstr_edge[d]]]
       cls[[u]] = cls_gnr(n, nclass[u], nclass[v], cls[[v]], tau_d);
    }
    y = list()
-   for (v in seq(nleaf)) {
+   for (v in seq_len(nleaf)) {
       rho_v = rho[[cstr_leaf[v]]]
       y[[v]] = y_gnr(n, nclass_leaf[cstr_leaf[v]], ncat[[cstr_leaf[v]]], cls[[leaf[v]]], rho_v)
    }
@@ -63,7 +67,8 @@ simulate.catlvm = function(
         ulv = ulv, vlv = vlv,
         cstr_root = cstr_root, cstr_leaf = cstr_leaf, cstr_edge = cstr_edge,
         nclass = nclass, nclass_root = nclass_root, nclass_leaf = nclass_leaf,
-        nclass_u = nclass_u, nclass_v = nclass_v)
+        nclass_u = nclass_u, nclass_v = nclass_v,
+        params = params)
 }
 
 catlvm = function(
@@ -150,21 +155,27 @@ catlvm = function(
    } else msr$label
 
    ltv_cstr = letters[seq_along(root)]
-   msr_cstr = letters[seq(msr$formula)]
-   str_cstr = letters[seq(unlist(str$formula))]
-   for (i in seq_along(constraints)) {
-      cstr = constraints[[i]]
-      if (all(grepl("->", cstr)))
-         str_cstr[which(unlist(str$formula) %in% cstr)] = i
-      else if (all(cstr %in% msr$label)) {
-         msr_cstr[which(msr$label %in% cstr)] = i
-      } else {
-         ltv_cstr[which(root %in% cstr)] = i
+   msr_cstr = letters[seq_along(msr$formula)]
+   str_cstr = letters[seq_along(unlist(str$formula))]
+   if (is.null(constraints)) {
+      msr$constraints = seq_len(length(msr$label))
+      str$constraints = seq_len(length(str$label))
+      ltv$constraints = seq_len(length(root))
+   } else {
+      for (i in seq_along(constraints)) {
+         cstr = constraints[[i]]
+         if (all(grepl("->", cstr)))
+            str_cstr[which(unlist(str$formula) %in% cstr)] = i
+         else if (all(cstr %in% msr$label)) {
+            msr_cstr[which(msr$label %in% cstr)] = i
+         } else {
+            ltv_cstr[which(root %in% cstr)] = i
+         }
       }
+      msr$constraints = as.numeric(factor(msr_cstr))
+      str$constraints = as.numeric(factor(str_cstr))
+      ltv$constraints = as.numeric(factor(ltv_cstr))
    }
-   msr$constraints = as.numeric(factor(msr_cstr))
-   str$constraints = as.numeric(factor(str_cstr))
-   ltv$constraints = as.numeric(factor(ltv_cstr))
 
    res = list(estimated = FALSE)
    res$latentVariable = c(N = length(ltv$label), ltv,
@@ -175,9 +186,9 @@ catlvm = function(
 
    root = sapply(root, function(x) which(ltv$label %in% x))
    leaf = sapply(leaf, function(x) which(ltv$label %in% x))
-   u = sapply(unlist(str$child), function(x) which(ltv$label %in% x))
-   v = sapply(rep(str$parent, sapply(str$child, length)),
-              function(x) which(ltv$label %in% x))
+   u = unlist(sapply(unlist(str$child), function(x) which(ltv$label %in% x)))
+   v = unlist(sapply(rep(str$parent, sapply(str$child, length)),
+              function(x) which(ltv$label %in% x)))
    unique_rt  = which(!duplicated(ltv$constraints))
    unique_msr = which(!duplicated(msr$constraints))
    unique_str = which(!duplicated(str$constraints))
@@ -212,17 +223,29 @@ f = list(L1[3] ~ x1 + x2,
          P3[3] ~ N1 + N2 + N3,
          U[2] ~ P1 + P2 + P3)
 a = catlvm(f, constraints = list(c("L1", "L2", "L3"), c("M1", "M2", "M3"), c("N1", "N2", "N3")))
-object = a
+a = catlvm(L1[3] ~ X1 + X2 + X3)
+y = simulate(a, 50)
 
-y = simulate(a, 100)
-
-treeFit(unlist(y$y), y$nobs, y$nvar, y$ncat,
+fit = treeFit(unlist(y$y), y$nobs, y$nvar, y$ncat,
         y$nlv, y$root - 1, y$leaf - 1, y$ulv - 1, y$vlv - 1,
-        y$cstr_root - 1, y$cstr_leaf - 1, y$cstr_edge - 1,
-        y$nclass, y$nclass_root, y$nclass_leaf,
-        y$nclass_u, y$nclass_v, 0, 1e-3)
+        y$cstr_leaf - 1, y$cstr_edge - 1,
+        y$nclass, y$nclass_leaf,
+        y$nclass_u, y$nclass_v, 100, 1e-3)
 
 
+fit$pi
+
+exp(fit$logliks)
+log(c(exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(2, 8, 13)])),
+   exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(4, 10, 15)])),
+   exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(6, 12, 17)]))))
+log(exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(2, 7, 14)])) +
+      exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(4, 9, 16)])) +
+      exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(6, 11, 18)])))
+log(sum(exp(fit$a[[1]] + fit$b[[1]])[1:3]))
+(fit$logliks)
+fit$pi[[1]] +
+fit$logliks
 print.catlvm <- function(x, ...) {
    cat("CATegorical Latent Variable Model",
        if (x$estimated) "(estimated)" ,"\n")
