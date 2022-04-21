@@ -513,65 +513,64 @@ List treeFit(
             pi += nclass[root[r]];
          }
       }
-      //
-      // // tau updates
-      // for (int d = 0; d < nedge; d ++) {
-      //    NumericVector ntau = lst_ntau[cstr_edge[d]];
-      //    NumericMatrix joint = lst_joint[d];
-      //    NumericVector jsum = rowSums(joint);
-      //    ntau += jsum;
-      // }
-      // for (int d = 0; d < nedge_unique; d ++) {
-      //    double *tau  = ptr_tau[d];
-      //    double *ntau = ptr_ntau[d];
-      //    for (int l = 0; l < nclass_v[d]; l ++) {
-      //       double sl = 0;
-      //       for (int k = 0; k < nclass_u[d]; k ++) {
-      //          sl += ntau[k];
-      //       }
-      //       for (int k = 0; k < nclass_u[d]; k ++) {
-      //          ntau[k] /= sl;
-      //       }
-      //       ntau += nclass_u[d];
-      //    }
-      //
-      //    for (int i = 0; i < nobs; i ++) {
-      //       for (int l = 0; l < nclass_v[d]; l ++) {
-      //          for (int k = 0; k < nclass_u[d]; k ++) {
-      //             tau[k] = ntau[k + nclass_u[d] * l];
-      //          }
-      //          tau  += nclass_u[d];
-      //          // ntau += nclass_u[d];
-      //       }
-      //    }
-      // }
-      //
-      // // rho updates
-      // py = y.begin();
-      // for (int v = 0; v < nleaf; v ++) {
-      //    int u = leaf[v];
-      //    cumPosty(ptr_rho_d[cstr_leaf[v]], ptr_rho_n[cstr_leaf[v]],
-      //             py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
-      //             nclass[u], ptr_post[u], ptr_rho[cstr_leaf[v]]);
-      //    py += nobs * nvar[cstr_leaf[v]];
-      // }
-      //
-      // for (int v = 0; v < nleaf_unique; v ++) {
-      //    double *rho = ptr_rho[v];
-      //    double *numer = ptr_rho_n[v];
-      //    double *denom = ptr_rho_d[v];
-      //    IntegerVector ncatv = ncat[v];
-      //    for (int m = 0; m < nvar[v]; m ++) {
-      //       for (int k = 0; k < nclass_leaf[v]; k ++) {
-      //          for (int r = 0; r < ncatv[m]; r ++) {
-      //             rho[r] = log(numer[r] / denom[k]);
-      //          }
-      //          rho  += ncatv[m];
-      //          numer += ncatv[m];
-      //       }
-      //       denom += nclass_leaf[v];
-      //    }
-      // }
+
+      // tau updates
+      for (int d = 0; d < nedge; d ++) {
+         NumericVector ntau = lst_ntau[cstr_edge[d]];
+         NumericMatrix joint = lst_joint[d];
+         NumericVector jsum = rowSums(joint);
+         ntau += jsum;
+      }
+      for (int d = 0; d < nedge_unique; d ++) {
+         double *tau  = ptr_tau[d];
+         double *ntau = ptr_ntau[d];
+         for (int l = 0; l < nclass_v[d]; l ++) {
+            double sl = 0;
+            for (int k = 0; k < nclass_u[d]; k ++) {
+               sl += ntau[k];
+            }
+            for (int k = 0; k < nclass_u[d]; k ++) {
+               ntau[k] /= sl;
+            }
+            ntau += nclass_u[d];
+         }
+
+         for (int i = 0; i < nobs; i ++) {
+            for (int l = 0; l < nclass_v[d]; l ++) {
+               for (int k = 0; k < nclass_u[d]; k ++) {
+                  tau[k] = log(ntau[k + nclass_u[d] * l]);
+               }
+               tau  += nclass_u[d];
+            }
+         }
+      }
+
+      // rho updates
+      py = y.begin();
+      for (int v = 0; v < nleaf; v ++) {
+         int u = leaf[v];
+         cumPosty(ptr_rho_d[cstr_leaf[v]], ptr_rho_n[cstr_leaf[v]],
+                  py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
+                  nclass[u], ptr_post[u], ptr_rho[cstr_leaf[v]]);
+         py += nobs * nvar[cstr_leaf[v]];
+      }
+
+      for (int v = 0; v < nleaf_unique; v ++) {
+         double *rho = ptr_rho[v];
+         double *numer = ptr_rho_n[v];
+         double *denom = ptr_rho_d[v];
+         IntegerVector ncatv = ncat[v];
+         for (int m = 0; m < nvar[v]; m ++) {
+            for (int k = 0; k < nclass_leaf[v]; k ++) {
+               for (int r = 0; r < ncatv[m]; r ++) {
+                  rho[r] = log(numer[r] / denom[k]);
+               }
+               rho  += ncatv[m];
+               numer += ncatv[m];
+            }
+            denom += nclass_leaf[v];
+         }
+      }
 
 
       if (lastll == R_NegInf) dll = R_PosInf;

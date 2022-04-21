@@ -209,43 +209,6 @@ catlvm = function(
    res
 }
 
-f = list(L1[3] ~ x1 + x2,
-         L2[3] ~ y1 + y2,
-         L3[3] ~  z1 + z2,
-         M1[3] ~ x12 + x22,
-         M2[3] ~ y12 + y22,
-         M3[3] ~  z12 + z22,
-         N1[3] ~ x13 + x23,
-         N2[3] ~ y13 + y23,
-         N3[3] ~  z13 + z23,
-         P1[3] ~ L1 + L2 + L3,
-         P2[3] ~ M1 + M2 + M3,
-         P3[3] ~ N1 + N2 + N3,
-         U[2] ~ P1 + P2 + P3)
-a = catlvm(f, constraints = list(c("L1", "L2", "L3"), c("M1", "M2", "M3"), c("N1", "N2", "N3")))
-a = catlvm(L1[3] ~ X1 + X2 + X3)
-y = simulate(a, 50)
-
-fit = treeFit(unlist(y$y), y$nobs, y$nvar, y$ncat,
-        y$nlv, y$root - 1, y$leaf - 1, y$ulv - 1, y$vlv - 1,
-        y$cstr_leaf - 1, y$cstr_edge - 1,
-        y$nclass, y$nclass_leaf,
-        y$nclass_u, y$nclass_v, 100, 1e-3)
-
-
-fit$pi
-
-exp(fit$logliks)
-log(c(exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(2, 8, 13)])),
-   exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(4, 10, 15)])),
-   exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(6, 12, 17)]))))
-log(exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(2, 7, 14)])) +
-      exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(4, 9, 16)])) +
-      exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(6, 11, 18)])))
-log(sum(exp(fit$a[[1]] + fit$b[[1]])[1:3]))
-(fit$logliks)
-fit$pi[[1]] +
-fit$logliks
 print.catlvm <- function(x, ...) {
    cat("CATegorical Latent Variable Model",
        if (x$estimated) "(estimated)" ,"\n")
@@ -277,6 +240,44 @@ print.catlvm <- function(x, ...) {
       print(mat[, NULL], quote = FALSE)
    }
 }
+
+
+f = list(L1[3] ~ x1 + x2,
+         L2[3] ~ y1 + y2,
+         L3[3] ~  z1 + z2,
+         M1[3] ~ x12 + x22,
+         M2[3] ~ y12 + y22,
+         M3[3] ~  z12 + z22,
+         N1[3] ~ x13 + x23,
+         N2[3] ~ y13 + y23,
+         N3[3] ~  z13 + z23,
+         P1[3] ~ L1 + L2 + L3,
+         P2[3] ~ M1 + M2 + M3,
+         P3[3] ~ N1 + N2 + N3,
+         U[2] ~ P1 + P2 + P3)
+lvm = catlvm(f, constraints = list(c("L1", "L2", "L3"), c("M1", "M2", "M3"), c("N1", "N2", "N3")))
+lvm = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3)
+lvm
+y = simulate(lvm, 50)
+fit = treeFit(unlist(y$y), y$nobs, y$nvar, y$ncat,
+        y$nlv, y$root - 1, y$leaf - 1, y$ulv - 1, y$vlv - 1,
+        y$cstr_leaf - 1, y$cstr_edge - 1,
+        y$nclass, y$nclass_leaf,
+        y$nclass_u, y$nclass_v, 10, 1e-3)
+
+
+
+exp(fit$logliks)
+log(c(exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(2, 8, 13)])),
+   exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(4, 10, 15)])),
+   exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(6, 12, 17)]))))
+log(exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(2, 7, 14)])) +
+      exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(4, 9, 16)])) +
+      exp(fit$pi[[1]][1] + sum((fit$rho[[1]])[c(6, 11, 18)])))
+log(sum(exp(fit$a[[1]] + fit$b[[1]])[1:3]))
+(fit$logliks)
+fit$pi[[1]] +
+fit$logliks
 
 estimate.catlvm = function(
    x, data = parent.frame(), subset, weights,
