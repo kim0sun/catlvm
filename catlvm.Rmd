@@ -28,40 +28,46 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Hierarchical latent class model {#hlca}
 $$
-\xi_{u}(k) = \textsf{Pr}\left[ \mathbf{Y}^{(u)} = \mathbf{y} | C_u = k \right] = 
-\prod_{m = 1}^{M} \prod_{r = 1}^{R_m} \rho_{mr|k}^{I(y_m = r)},
-\quad
-\tau_{\rho(u), u}(l, k) = \textsf{Pr}\left[ C_u = k|C_{\rho(u)} = l \right],
-\quad \text{and} \quad
-\pi(k) = \textsf{Pr}(C_1 = k)
+\pi_k = \textsf{Pr}\left( C_1 = k \right),
+\;\;
+\tau_{k|l}^{(u)} = \textsf{Pr}\left( C_u = k|C_{\rho(u)} = l \right),
+\; \text{and} \;\;
+\rho_{mr|k}^{(u)} = \textsf{Pr}\left( Y_{m(u)} = r | C_{u} = k \right)
 $$
 Upward recursion
 $$
 \begin{aligned}
-\beta_i^{(u)}(k) = 
+\xi_{i(u)}(k) &= \textsf{Pr}\left( \mathbf{Y}_{i(u)} = \mathbf{y}_{i(u)} | C_u = k \right) = 
+\prod_{m = 1}^{M} \rho_{my_m|k}^{(u)}
 \\
-\beta_i^{(u,\rho(u))}(k) = 
+\lambda_{i(v)}(k) &= \xi_{i(v)}(k)
 \\
-\beta_i^{(\rho(u))}(k) = 
+\lambda_{i(\rho(u), u)}(l) &= \sum_k \tau_{k, l}^{(u)} \lambda_{i(u)}(k)
+\\
+\lambda_{i(u)}(k) &= \left\{ \prod_{v\in \mathbf{c}(u)} \lambda_{i(u, v)}(k) \right\} \xi_{i(u)}(k)
 \end{aligned}
 $$
 
 Downward recursion
 $$
 \begin{aligned}
-\alpha_i^{(u)}(k) = \sum_{j}\frac{\tau_{j, k}^{(\rho(u), u)} \times \alpha_i^{(\rho(u))}(j) \times  \beta_i^{(\rho(u))}(j)}{\beta_{i}^{(u, \rho(u))}(j)}
+\alpha_{i(u)}(k) = \sum_{l}\frac{\tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(l)  \lambda_{i(\rho(u))}(l)}{\lambda_{i(\rho(u), u)}(l)}
 \end{aligned}
 $$
 
-Posterior probabilties
+Posterior probabilities
 $$
 \begin{aligned}
-\theta_{i}^{(u)}(k) &= \textsf{Pr}(C_u = k | \mathbf{y}_i) 
+\theta_{i(u)}(k) &= \textsf{Pr}\left( C_u = k | \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) 
+= \frac{ \textsf{Pr}\left( C_u = k, \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }{ \textsf{Pr}\left( \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }
 \\
-&= \alpha_u(k) \times \beta_u(k)
+&=\frac{ \textsf{Pr}\left( C_u = k, \bar{\mathbf{Y}}_{i(1\backslash u)} = \bar{\mathbf{y}}_{i(1\backslash u)} \right) \times \textsf{Pr}\left( \bar{\mathbf{Y}}_{i(u)} = \bar{\mathbf{y}}_{i(u)} | C_u = k \right) }{ \textsf{Pr}\left( \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }
 \\
-\theta_{i}^{\rho(u), u}(j,k) &= \textsf{Pr}(C_{\rho(u)} = j, C_u = k | \mathbf{y}_i) 
+&= \frac{ \alpha_{i(u)}(k) \lambda_{i(u)}(k) }{ \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j) }
 \\
-&= \frac{\beta_i^{(u)}(k) \times \tau_{j, k}^{(\rho(u), u)} \times \alpha_i^{(\rho(u))}(j) \times  \beta_i^{(\rho(u))}(j)}{\beta_{i}^{(u, \rho(u))}(j)}
+\\
+\theta_{i(\rho(u), u)}(k,l) &= \textsf{Pr}\left( C_u = k, C_{\rho(u)} = l | \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) 
+\\
+&= \frac{\lambda_{i(u)}(k) \tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(j)  \lambda_{i(\rho(u))}(j)}{\lambda_{i(u, \rho(u))}(j) \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j)}
 \end{aligned}
 $$

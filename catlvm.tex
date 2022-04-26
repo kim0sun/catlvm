@@ -1,0 +1,189 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  11pt,
+]{article}
+
+\usepackage{amsmath,amssymb,graphicx}
+\usepackage[]{mathpazo}
+
+\usepackage{kotex}
+
+\usepackage{iftex}
+\ifPDFTeX
+   \usepackage[T1]{fontenc}
+   \usepackage[utf8]{inputenc}
+   \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+   \usepackage{unicode-math}
+   \defaultfontfeatures{Scale=MatchLowercase}
+   \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+
+
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+   \usepackage[]{microtype}
+   \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+   \IfFileExists{parskip.sty}{%
+      \usepackage{parskip}
+   }{% else
+      \setlength{\parindent}{0pt}
+      \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+   \KOMAoptions{parskip=half}
+}
+\makeatother
+
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+   pdftitle={catlvm : CATegorical Latent Variable Model},
+   hidelinks,
+   pdfcreator={LaTeX via pandoc}
+}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[top = 1in, bottom = 1in, left = 1in, right = 1in]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+   \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{catlvm : CATegorical Latent Variable Model}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\LARGE\rm #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Upward-Downward Algorithm}
+\author{
+   \name Youngsun Kim
+   \email \href{mailto:kim0sun@korea.ac.kr}{\nolinkurl{kim0sun@korea.ac.kr}}
+   \addr Department of Statistics \newline Korea University
+   
+}
+\date{}
+
+%%% Environment Style %%%%
+%%% Title %%%%
+\makeatletter
+\def\@maketitle {
+   \newpage
+   \let \footnote \thanks
+   {\huge\bf \@title \par}%
+   {\large
+   \def\name{\normalsize \bf}
+   \def\email{\hfill \small \sc}
+   \def\addr{\vskip .1em \small \it}
+   \def\AND{\vskip .5em}
+   \vskip 1em%
+   \@author
+   \vskip 1em}
+}
+\makeatother
+
+%%%% Abstract %%%%
+\renewenvironment{abstract}
+{\hrule \vskip 1ex {\bf \small Abstract \;\;}%
+  \bgroup\noindent\small\noindent\ignorespaces}%
+{\par\egroup \vskip 0.25ex}
+
+\usepackage{lipsum}
+
+%%%% Keyword %%%%
+\newenvironment{keywords}
+{\bgroup \small\noindent{\textit Keywords:}}%
+{\par\egroup\vskip 1.5ex \hrule}
+
+%%%% Section %%%%
+\usepackage{titlesec}
+\titleformat*{\section}{\large\bf}
+\titleformat*{\subsection}{\large\it}
+\titleformat*{\subsubsection}{\large\it}
+\titlespacing{\section}{0pt}{*4}{*1.5}
+\titlespacing{\subsection}{0pt}{*4}{*1.5}
+\titlespacing{\subsubsection}{0pt}{*4}{*1.5}
+
+%%%% Document Begin %%%%
+\begin{document}
+\maketitle
+
+
+\hypertarget{hmt}{%
+\section{Hidden Markov tree}\label{hmt}}
+
+\hypertarget{hlca}{%
+\section{Hierarchical latent class model}\label{hlca}}
+
+\[
+\pi_k = \textsf{Pr}\left( C_1 = k \right),
+\;\;
+\tau_{k|l}^{(u)} = \textsf{Pr}\left( C_u = k|C_{\rho(u)} = l \right),
+\; \text{and} \;\;
+\rho_{mr|k}^{(u)} = \textsf{Pr}\left( Y_{m(u)} = r | C_{u} = k \right)
+\]
+Upward recursion
+\[
+\begin{aligned}
+\xi_{i(u)}(k) &= \textsf{Pr}\left( \mathbf{Y}_{i(u)} = \mathbf{y}_{i(u)} | C_u = k \right) = 
+\prod_{m = 1}^{M} \rho_{my_m|k}^{(u)}
+\\
+\lambda_{i(v)}(k) &= \xi_{i(v)}(k)
+\\
+\lambda_{i(\rho(u), u)}(l) &= \sum_k \tau_{k, l}^{(u)} \lambda_{i(u)}(k)
+\\
+\lambda_{i(u)}(k) &= \left\{ \prod_{v\in \mathbf{c}(u)} \lambda_{i(u, v)}(k) \right\} \xi_{i(u)}(k)
+\end{aligned}
+\]
+
+Downward recursion
+\[
+\begin{aligned}
+\alpha_{i(u)}(k) = \sum_{l}\frac{\tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(l)  \lambda_{i(\rho(u))}(l)}{\lambda_{i(\rho(u), u)}(l)}
+\end{aligned}
+\]
+
+Posterior probabilities
+\[
+\begin{aligned}
+\theta_{i(u)}(k) &= \textsf{Pr}\left( C_u = k | \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) 
+= \frac{ \textsf{Pr}\left( C_u = k, \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }{ \textsf{Pr}\left( \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }
+\\
+&=\frac{ \textsf{Pr}\left( C_u = k, \bar{\mathbf{Y}}_{i(1\backslash u)} = \bar{\mathbf{y}}_{i(1\backslash u)} \right) \times \textsf{Pr}\left( \bar{\mathbf{Y}}_{i(u)} = \bar{\mathbf{y}}_{i(u)} | C_u = k \right) }{ \textsf{Pr}\left( \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }
+\\
+&= \frac{ \alpha_{i(u)}(k) \lambda_{i(u)}(k) }{ \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j) }
+\\
+\\
+\theta_{i(\rho(u), u)}(k,l) &= \textsf{Pr}\left( C_u = k, C_{\rho(u)} = l | \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) 
+\\
+&= \frac{\lambda_{i(u)}(k) \tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(j)  \lambda_{i(\rho(u))}(j)}{\lambda_{i(u, \rho(u))}(j) \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j)}
+\end{aligned}
+\]
+
+
+
+
+
+\end{document}

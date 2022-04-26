@@ -1,7 +1,7 @@
 simulate.catlvm <- function(
    object, nsim = 500, ncat = NULL, pi = NULL, tau = NULL, rho = NULL
 ) {
-   pi_valid <- function(pi, nobs, nclass) {
+   pi_valid <- function(pi, nclass, nobs) {
       if (is.matrix(pi)) {
          dimTF = dim(pi) == c(nclass, nobs)
          sumTF = all(colSums(pi) == 1)
@@ -15,7 +15,7 @@ simulate.catlvm <- function(
       } else return(pi_gnr(nclass, nobs))
    }
 
-   tau_valid <- function(tau, nobs, nk, nl) {
+   tau_valid <- function(tau, nk, nl, nobs) {
       if (is.matrix(tau)) {
          dimTF1 = dim(pi) == c(nk, nl)
          dimTF2 = dim(pi) == c(nk * nl, nobs)
@@ -26,7 +26,7 @@ simulate.catlvm <- function(
       } else return(tau_gnr(nk, nl, nobs))
    }
 
-   rho_valid <- function(rho, nobs, nclass, ncat) {
+   rho_valid <- function(rho, nclass, ncat, nobs) {
       if (is.list(rho)) {
          dim1 = lapply(rho, dim)
          dim2 = lapply(ncat, function(m) c(m, nclass))
@@ -50,7 +50,6 @@ simulate.catlvm <- function(
    leaf = object$index$leaf
    ulv = object$index$u
    vlv = object$index$v
-   cstr_root = object$latentVariable$constraints
    cstr_leaf = object$measureModel$constraints
    cstr_edge = object$latentStruct$constraints
 
@@ -61,59 +60,48 @@ simulate.catlvm <- function(
 
    nroot = length(root)
    nleaf = object$measureModel$N
+   nedge = object$latentStruct$N
    nleaf_unique = length(object$index$unique_msr)
    nedge_unique = length(object$index$unique_str)
 
    nvar = object$index$nvar
    ncat = if (is.null(ncat)) lapply(nvar, function(x) rep(2, x)) else ncat
 
-   params = list()
-   params$pi = list()
    if (length(pi) < nroot)
       pi = lapply(seq_len(nroot), function(x) NULL)
-   for (r in seq_along(root)) {
-      params$pi[[r]] = pi_valid(pi[[r]], nsim, nclass[root[r]])
+   for (r in seq_len(nroot)) {
+      pi[[r]] = pi_valid(pi[[r]], nclass[root[r]], nsim)
    }
-   params$tau = list()
    if (length(tau) < nedge_unique)
       tau = lapply(seq_len(nedge_unique), function(x) NULL)
    for (d in seq_len(nedge_unique)) {
-      params$tau[[d]] = tau_valid(tau[[d]], nsim, nclass_u[d], nclass_v[d])
+      tau[[d]] = tau_valid(tau[[d]], nclass_u[d], nclass_v[d], nsim)
    }
-   params$rho = list()
    if (length(rho) < nleaf_unique)
-      pi = lapply(seq_len(nleaf_unique), function(x) NULL)
+      rho = lapply(seq_len(nleaf_unique), function(x) NULL)
    for (v in seq_len(nleaf_unique)) {
-      params$rho[[v]] = rho_valid(rho[[v]], nobs, nclass_leaf[v], ncat[[v]])
+      rho[[v]] = rho_valid(rho[[v]], nclass_leaf[v], ncat[[v]], nobs)
    }
 
-   cls = list()
-   for (r in seq_along(root)) {
-      cls[[root[r]]] = root_gnr(nsim, nclass[root[r]], params$pi[[r]])
+   prev = list()
+   for (r in seq_len(nroot)) prev[[r]] = pi[[r]]
+   for (d in seq_len(nedge)) {
+      prev[[ulv[d]]] = tau[[cstr_edge[d]]]
    }
 
-   for (d in rev(seq_along(ulv))) {
-      u = ulv[d]; v = vlv[d]
-      tau_d = params$tau[[cstr_edge[d]]]
-      cls[[u]] = cls_gnr(nsim, nclass[u], nclass[v], cls[[v]], tau_d);
-   }
-   y = list()
-   for (v in seq_len(nleaf)) {
-      u = leaf[v]
-      cstr = cstr_leaf[v]
-      rho_v = params$rho[[cstr]]
-      y[[v]] = y_gnr(nsim, nclass[u], ncat[[cstr]], cls[[u]], rho_v)
-   }
 
-   index = list(
-      nobs = nsim, nvar = nvar, ncat = ncat, nlv = nlv,
-      root = root, leaf = leaf, ulv = ulv, vlv = vlv,
-      cstr_leaf = cstr_leaf, cstr_edge = cstr_edge,
-      nclass = nclass, nclass_leaf = nclass_leaf,
-      nclass_u = nclass_u, nclass_v = nclass_v
-   )
+   ysim = ysim(nsim, nlv, root - 1, leaf - 1, ulv - 1, vlv - 1,
+               nclass, nroot, nleaf, nedge, ncat,
+               cstr_edge - 1, cstr_leaf - 1, pi, tau, rho, TRUE)
 
-   list(response = y, class = cls, index = index, params = params)
+   index = list(nobs = nsim, nvar = nvar, ncat = ncat, nlv = nlv,
+                root = root, leaf = leaf, ulv = ulv, vlv = vlv,
+                cstr_leaf = cstr_leaf, cstr_edge = cstr_edge,
+                nclass = nclass, nclass_leaf = nclass_leaf,
+                nclass_u = nclass_u, nclass_v = nclass_v)
+
+   list(response = ysim$y, class = ysim$class, index = index, prev = prev,
+        params = list(pi = pi, tau = tau, rho = rho))
 }
 
 catlvm = function(
@@ -130,9 +118,9 @@ catlvm = function(
       ll = length(lhs(f)) > 2
       rl = all(all.vars(rhs(f)) %in% lvs)
       rm = all(!(all.vars(rhs(f)) %in% lvs))
-      if (rl) return(2)
-      if (ll && rm) return(1)
-      if (!ll && rm) return(3)
+      if (rl) return(2) # struct
+      if (ll && rm) return(1) # measure
+      if (!ll && rm) return(3) # regression
       if (!rl && !rm) {
          stop("Formula wrong.")
       }
@@ -147,7 +135,7 @@ catlvm = function(
    }
    msrf <- function(f) {
       vars = all.vars(f)
-      f = paste(vars[1], "->", paste(vars[-1], collapse = ", "))
+      f = paste(vars[1], "-> {", paste(vars[-1], collapse = ", "), "}")
       lb = vars[1]
       m = list(vars[-1])
       names(m) = lb
@@ -171,9 +159,9 @@ catlvm = function(
    while (any(stages < 0)) {
       iter = iter + 1
       unstaged = which(stages < 0)
-      bot = sapply(terms[unstaged], function(x)
+      base = sapply(terms[unstaged], function(x)
          all(!x %in% labels[unstaged]))
-      stages[unstaged[bot]] = iter
+      stages[unstaged[base]] = iter
    }
 
    formula = c(formula[types < 3][order(stages)],
@@ -220,6 +208,7 @@ catlvm = function(
    }
 
    res = list(estimated = FALSE)
+   res$formula = formula
    res$latentVariable = c(N = length(ltv$label), ltv)
    res$measureModel = c(N = length(msr$formula), msr)
    res$latentStruct = c(N = length(str$formula), str)
@@ -279,38 +268,39 @@ print.catlvm <- function(x, ...) {
       print(mat[, NULL], quote = FALSE)
    }
 }
-lca   = catlvm(L1[2] ~ X1 + X2 + X3)
-lcas  = catlvm(L1[2] ~ X1 + X2 + X3, L2[2] ~ Y1 + Y2 + Y3, L3[2] ~ Z1 + Z2 + Z3)
-jlca  = catlvm(L1[2] ~ X1 + X2 + X3, L2[2] ~ Y1 + Y2 + Y3, L3[2] ~ Z1 + Z2 + Z3, L1 ~ L2, L2 ~ L3)
-lcpa  = catlvm(L1[2] ~ X1 + X2 + X3, L2[2] ~ Y1 + Y2 + Y3, L3[2] ~ Z1 + Z2 + Z3, P1[2] ~ L1 + L2 + L3,
+
+lca   = catlvm(L1[3] ~ X1 + X2 + X3)
+lcas  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3)
+jlca  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, L1 ~ L2, L2 ~ L3)
+lcpa  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, P1[3] ~ L1 + L2 + L3,
               constraints = list(c("L1", "L2", "L3")))
-jlcpa = catlvm(L1[2] ~ X11 + X21 + X31, M1[2] ~ Y11 + Y21 + Y31, N1[2] ~ Z11 + Z21 + Z31,
-               L2[2] ~ X12 + X22 + X32, M2[2] ~ Y12 + Y22 + Y32, N2[2] ~ Z12 + Z22 + Z32,
-               L3[2] ~ X13 + X23 + X33, M3[2] ~ Y13 + Y23 + Y33, N3[2] ~ Z13 + Z23 + Z33,
+jlcpa = catlvm(L1[3] ~ X11 + X21 + X31, M1[3] ~ Y11 + Y21 + Y31, N1[3] ~ Z11 + Z21 + Z31,
+               L2[3] ~ X12 + X22 + X32, M2[3] ~ Y12 + Y22 + Y32, N2[3] ~ Z12 + Z22 + Z32,
+               L3[3] ~ X13 + X23 + X33, M3[3] ~ Y13 + Y23 + Y33, N3[3] ~ Z13 + Z23 + Z33,
                J1[3] ~ L1 + M1 + N1, J2[3] ~ L2 + M2 + N2, J3[3] ~ L3 + M3 + N3,
                JP[3] ~ J1 + J2 + J3,
                constraints = list(c("L1", "L2", "L3"), c("M1", "M2", "M3"), c("N1", "N2", "N3")))
-lta = catlvm(L1[2] ~ X11 + X21 + X31, L2[2] ~ X12 + X22 + X32, L3[2] ~ X13 + X23 + X33, L1 ~ L2, L2 ~ L3,
+lta = catlvm(L1[3] ~ X11 + X21 + X31, L2[3] ~ X12 + X22 + X32, L3[3] ~ X13 + X23 + X33, L1 ~ L2, L2 ~ L3,
              constraints = list(c("L1", "L2", "L3")))
+lcawg = catlvm(LG[3] ~ Z1 + Z2 + Z3, LC[3] ~ X1 + X2 + X3)
+plot(lta)
+{
+   object = lcawg
+   y = simulate(object, 300)
+   fit1 = emFit(unlist(y$response), y$index$nobs,
+               y$index$nvar, y$index$ncat, y$index$nlv,
+               y$index$root - 1, y$index$leaf - 1,
+               y$index$ulv - 1, y$index$vlv - 1,
+               y$index$cstr_leaf - 1, y$index$cstr_edge - 1,
+               y$index$nclass, y$index$nclass_leaf,
+               y$index$nclass_u, y$index$nclass_v,
+               rep(TRUE, 3), y$params, 1000, 1e-5)
+}
 
-lvm = lcas
-y = simulate(lvm, 50)
-fit2 = treeFit(unlist(y$response), y$index$nobs, y$index$nvar, y$index$ncat, y$index$nlv,
-              y$index$root - 1, y$index$leaf - 1, y$index$ulv - 1, y$index$vlv - 1,
-              y$index$cstr_leaf - 1, y$index$cstr_edge - 1,
-              y$index$nclass, y$index$nclass_leaf, y$index$nclass_u, y$index$nclass_v,
-              rep(TRUE, 3), y$params, 5000, 1e-5)
-
-fit1$loglik
-fit2$loglik
-t(sapply(fit1$param$rho, function(x) round(exp(x), 3)))
-t(sapply(fit2$param$rho, function(x) round(exp(x), 3)))
-
-lapply(y$params$pi, function(x) round(exp(x), 3))
-lapply(fit$pi, function(x) round(exp(x), 3))
 estimate.catlvm = function(
    x, data = parent.frame(), subset, weights,
-   method = "em", control = catlvm.control(), ...
+   method = "em", smoothing = TRUE,
+   control = catlvm.control(), ...
 ) {
 
    class(res) = "catlvm"
