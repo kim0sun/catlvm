@@ -15,12 +15,17 @@ plot.catlvm <- function(x, abbreviation = FALSE, font = "Helvetica", ...) {
       paste(x, "-> {", paste(manifest[[x]], collapse = ", "), "}")),
       collapse = "\n")
    str_path <- paste0(x$latentStruct$formula, collapse = "\n")
+   cstr <-  split(x$measureModel$label, x$measureModel$constraints)
+   cst_rank <- paste(paste0("{rank = same; ", sapply(cstr, function(x)
+      paste(x, collapse = "; ")), ";}"), collapse = "\n")
 
    text <- paste0(
       "digraph { \n", "node[fontname = '", font, "']\n\n",
       var_def, "\n\n", msr_path, "\n",
-      str_path, "\n}"
+      str_path, "\n\n", cst_rank, "\n}"
    )
    DiagrammeR::grViz(text, ...)
    # return(text)
 }
+
+

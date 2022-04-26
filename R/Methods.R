@@ -118,13 +118,14 @@ catlvm = function(
       ll = length(lhs(f)) > 2
       rl = all(all.vars(rhs(f)) %in% lvs)
       rm = all(!(all.vars(rhs(f)) %in% lvs))
-      if (rl) return(2) # struct
-      if (ll && rm) return(1) # measure
+      if (rl) return(1) # struct
+      if (ll && rm) return(2) # measure
       if (!ll && rm) return(3) # regression
       if (!rl && !rm) {
          stop("Formula wrong.")
       }
    }
+
 
    strf <- function(f) {
       vars = all.vars(f)
@@ -147,26 +148,27 @@ catlvm = function(
    }
 
    labels <- sapply(formula, function(x) all.vars(lhs(x)))
-   terms  <- lapply(formula, function(x) all.vars(rhs(x)))
-   if (any(duplicated(unlist(terms))))
+   fterms <- lapply(formula, function(x) all.vars(rhs(x)))
+   if (any(duplicated(unlist(fterms))))
       stop("Some variables measures more than 1 variable.")
-   types  <- sapply(formula, typef, labels)
+   ftypes <- sapply(formula, typef, labels)
+   root_lab  <- setdiff(sapply(formula, function(x) all.vars(lhs(x))),
+                     unlist(sapply(formula, function(x) all.vars(rhs(x)))))
 
-   stages <- rep(-1, sum(types < 3))
-   names(stages) <- labels[types < 3]
-   stages[which(types == 1)] <- 0
-   iter = 0
-   while (any(stages < 0)) {
-      iter = iter + 1
-      unstaged = which(stages < 0)
-      base = sapply(terms[unstaged], function(x)
-         all(!x %in% labels[unstaged]))
-      stages[unstaged[base]] = iter
+   stages <- numeric(length(formula))
+   names(stages) <- labels
+   stages[labels %in% root_lab] <- 1
+   iter = 1
+   while (any(stages == 0)) {
+      iter <- iter + 1
+      staged <- stages > 0
+      unstaged <- !staged
+      stages[!staged & labels %in% unlist(fterms[staged])] <- iter
    }
+   stages[which(ftypes > 1)] <- Inf
 
-   formula = c(formula[types < 3][order(stages)],
-               formula[types == 3])
-   labels <- sapply(formula, function(x) all.vars(lhs(x)))
+   formula <- formula[order(stages)]
+   labels <- labels[order(stages)]
    nclass <- sapply(formula[!duplicated(labels)], ncls)
 
    msr <- list(formula = c(), label = c(), manifest = list(), nvar = c())
@@ -174,27 +176,23 @@ catlvm = function(
    reg <- list(formula = c(), label = c(), covariates = list())
 
    for (f in formula) {
-      type = typef(f, unique(labels))
-      if (type == 1)
-         msr = mapply(c, msr, msrf(f), SIMPLIFY = FALSE)
-      if (type == 2)
+      ftype = typef(f, labels)
+      if (ftype == 1)
          str = mapply(c, str, strf(f), SIMPLIFY = FALSE)
-      if (type == 3)
+      if (ftype == 2)
+         msr = mapply(c, msr, msrf(f), SIMPLIFY = FALSE)
+      if (ftype == 3)
          reg = mapply(c, reg, regf(f), SIMPLIFY = FALSE)
    }
 
-   leaf_lab = msr$label
-   root_lab = setdiff(sapply(formula, function(x) all.vars(lhs(x))),
-                      unlist(sapply(formula, function(x) all.vars(rhs(x)))))
+   leaf_lab <- msr$label
    ltv <- list(label = unique(labels), nclass = nclass,
-               root = root_lab, leaf = leaf_lab)
+               root = roots, leaf = leaf_lab)
 
    msr_cstr = letters[seq_along(msr$formula)]
    str_cstr = letters[seq_along(unlist(str$formula))]
-   if (is.null(constraints)) {
-      msr$constraints = seq_len(length(msr$label))
-      str$constraints = seq_len(length(str$formula))
-   } else {
+   if (!is.null(constraints)) {
+      if (!is.list(constraints)) constraints = list(constraints)
       for (i in seq_along(constraints)) {
          cstr = constraints[[i]]
          if (all(grepl("->", cstr)))
@@ -203,9 +201,9 @@ catlvm = function(
             msr_cstr[which(msr$label %in% cstr)] = i
          }
       }
-      msr$constraints = as.numeric(factor(msr_cstr))
-      str$constraints = as.numeric(factor(str_cstr))
    }
+   msr$constraints = as.numeric(factor(msr_cstr))
+   str$constraints = as.numeric(factor(str_cstr))
 
    res = list(estimated = FALSE)
    res$formula = formula
@@ -214,20 +212,15 @@ catlvm = function(
    res$latentStruct = c(N = length(str$formula), str)
    res$regressModel = c(N = length(reg$formula), reg)
 
-   root = sapply(root_lab, function(x) which(ltv$label %in% x))
-   leaf = sapply(leaf_lab, function(x) which(ltv$label %in% x))
-   u = unlist(sapply(unlist(str$child), function(x) which(ltv$label %in% x)))
-   v = unlist(sapply(rep(str$parent, sapply(str$child, length)),
-              function(x) which(ltv$label %in% x)))
-   unique_rt  = which(!duplicated(ltv$constraints))
    unique_msr = which(!duplicated(msr$constraints))
    unique_str = which(!duplicated(str$constraints))
-
    res$index = list(
-      root = root, leaf = leaf, u = u, v = v,
+      root = sapply(root_lab, function(x) which(ltv$label %in% x)),
+      leaf = sapply(leaf_lab, function(x) which(ltv$label %in% x)),
+      u = unlist(sapply(unlist(str$child), function(x) which(ltv$label %in% x))),
+      v = unlist(sapply(rep(str$parent, sapply(str$child, length)),
+                        function(x) which(ltv$label %in% x))),
       nvar = msr$nvar[unique_msr],
-      unique_msr = unique_msr,
-      unique_str = unique_str,
       nclass_leaf = ltv$nclass[leaf[unique_msr]],
       nclass_u = ltv$nclass[u[unique_str]],
       nclass_v = ltv$nclass[v[unique_str]]
@@ -268,11 +261,11 @@ print.catlvm <- function(x, ...) {
       print(mat[, NULL], quote = FALSE)
    }
 }
-
+undebug(catlvm)
 lca   = catlvm(L1[3] ~ X1 + X2 + X3)
 lcas  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3)
-jlca  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, L1 ~ L2, L2 ~ L3)
-lcpa  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, P1[3] ~ L1 + L2 + L3,
+jlca  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, JC[3] ~ L1 + L2 + L3)
+lcpa  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, PF[3] ~ L1 + L2 + L3,
               constraints = list(c("L1", "L2", "L3")))
 jlcpa = catlvm(L1[3] ~ X11 + X21 + X31, M1[3] ~ Y11 + Y21 + Y31, N1[3] ~ Z11 + Z21 + Z31,
                L2[3] ~ X12 + X22 + X32, M2[3] ~ Y12 + Y22 + Y32, N2[3] ~ Z12 + Z22 + Z32,
@@ -282,11 +275,16 @@ jlcpa = catlvm(L1[3] ~ X11 + X21 + X31, M1[3] ~ Y11 + Y21 + Y31, N1[3] ~ Z11 + Z
                constraints = list(c("L1", "L2", "L3"), c("M1", "M2", "M3"), c("N1", "N2", "N3")))
 lta = catlvm(L1[3] ~ X11 + X21 + X31, L2[3] ~ X12 + X22 + X32, L3[3] ~ X13 + X23 + X33, L1 ~ L2, L2 ~ L3,
              constraints = list(c("L1", "L2", "L3")))
-lcawg = catlvm(LG[3] ~ Z1 + Z2 + Z3, LC[3] ~ X1 + X2 + X3)
-plot(lta)
+lcawg = catlvm(LG[3] ~ Z1 + Z2 + Z3, LC[3] ~ X1 + X2 + X3, LG ~ LC)
+lcpawg = catlvm(LG[3] ~ Z1 + Z2 + Z3, LG ~ P1,
+                L1[3] ~ X11 + X12 + X13, L2[3] ~ X21 + X22 + X23, L3[3] ~ X31 + X32 + X33,
+                P1[3] ~ L1 + L2 + L3,
+                constraints = list(c("L1", "L2", "L3")))
+formula = list(L1[3] ~ X11 + X21 + X31, L2[3] ~ X12 + X22 + X32, L3[3] ~ X13 + X23 + X33, L1 ~ L2, L2 ~ L3)
+plot(lcpawg)
 {
-   object = lcawg
-   y = simulate(object, 300)
+   object = lcas
+   y = simulate(object, 500)
    fit1 = emFit(unlist(y$response), y$index$nobs,
                y$index$nvar, y$index$ncat, y$index$nlv,
                y$index$root - 1, y$index$leaf - 1,
@@ -294,8 +292,9 @@ plot(lta)
                y$index$cstr_leaf - 1, y$index$cstr_edge - 1,
                y$index$nclass, y$index$nclass_leaf,
                y$index$nclass_u, y$index$nclass_v,
-               rep(TRUE, 3), y$params, 1000, 1e-5)
+               rep(TRUE, 3), y$params, 1000, 1e-5, verbose = TRUE)
 }
+
 
 estimate.catlvm = function(
    x, data = parent.frame(), subset, weights,

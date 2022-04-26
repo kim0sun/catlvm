@@ -302,7 +302,7 @@ void dnInit(
          post[k] = alpha[k] + lambda[k];
          lik += exp(post[k]);
       }
-      ll[i] += log(lik);
+      ll[i] = log(lik);
 
       for (int k = 0; k < nclass; k ++) {
          post[k] -= ll[i];
@@ -319,7 +319,7 @@ void dnRec(
    double *alpha, double *ualpha,
    double *lambda, double *ulambda, double *jlambda,
    int nobs, int nk, int nl, double *tau,
-   double *post, double *joint, NumericVector ll
+   double *post, double *joint, double *ll
 ) {
    for (int i = 0; i < nobs; i ++) {
       for (int k = 0; k < nk; k ++) {
@@ -442,13 +442,12 @@ void updateRho(
 // [[Rcpp::export]]
 List emFit(
       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-      int nlv, IntegerVector root, IntegerVector leaf,
-      IntegerVector ulv, IntegerVector vlv,
-      IntegerVector cstr_leaf, IntegerVector cstr_edge,
+      int nlv, IntegerVector root, IntegerVector leaf, IntegerVector cstr_leaf,
+      IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_root,  IntegerVector cstr_edge,
       IntegerVector nclass, IntegerVector nclass_leaf,
       IntegerVector nclass_u, IntegerVector nclass_v,
       LogicalVector init, List init_param,
-      int max_iter, double tol
+      int max_iter, double tol, bool verbose
 ) {
    int *py;
    int nroot = root.length();
@@ -470,9 +469,11 @@ List emFit(
    std::vector<double*> ptr_nrho_d(nleaf_unique);
    std::vector<double*> ptr_nrho_n(nleaf_unique);
 
+   List lst_ll(nroot);
    List lst_a(nlv);
    List lst_l(nlv);
    List lst_j(nedge);
+   std::vector<double*> ptr_ll(nroot);
    std::vector<double*> ptr_a(nlv);
    std::vector<double*> ptr_l(nlv);
    std::vector<double*> ptr_j(nedge);
@@ -551,6 +552,12 @@ List emFit(
       }
    }
 
+   for (int r = 0; r < nroot; r ++) {
+      NumericVector ll(nobs);
+      lst_ll[r] = ll;
+      ptr_ll[r] = ll.begin();
+   }
+
    for (int d = 0; d < nedge; d ++) {
       int lk = cstr_edge[d];
       NumericMatrix joint(nclass_u[lk] * nclass_v[lk], nobs);
@@ -599,7 +606,7 @@ List emFit(
       }
 
       // upward recursion
-      for (int d = 0; d < nedge; d ++) {
+      for (int d = nedge - 1; d > -1; d --) {
          int u = ulv[d];
          int v = vlv[d];
          upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[cstr_edge[d]],
@@ -607,19 +614,18 @@ List emFit(
       }
 
       // initiate alpha
-      ll.fill(0);
       for (int r = 0; r < nroot; r ++) {
          dnInit(ptr_a[root[r]], ptr_l[root[r]], ptr_pi[r], ptr_post[root[r]],
-                ll.begin(), nobs, nclass[root[r]]);
+                ptr_ll[r], nobs, nclass[root[r]]);
       }
 
       // Downward recursion
-      for (int d = nedge - 1; d > -1; d --) {
+      for (int d = 0; d < nedge; d ++) {
          int u = ulv[d];
          int v = vlv[d];
          dnRec(ptr_a[u], ptr_a[v], ptr_l[u], ptr_l[v], ptr_j[d],
                nobs, nclass[u], nclass[v], ptr_tau[cstr_edge[d]],
-               ptr_post[u], ptr_joint[d], ll);
+               ptr_post[u], ptr_joint[d], ptr_ll[cstr_root[d]]);
       }
 
       // (maximization-step)
@@ -658,7 +664,12 @@ List emFit(
       currll = sum(ll);
       if (lastll == R_NegInf) dll = R_PosInf;
       else dll = currll - lastll;
-      // Rcout << iter << ") ll: " << currll << " / diff: " << dll << std::endl;
+      if (verbose) {
+         Rcout << iter << ") ll: " << currll << " / diff: " << dll << "\r"<< std::flush;
+      }
+   }
+   if (verbose) {
+      Rcout << std::endl;
    }
 
    // computes posterior probs
@@ -747,7 +758,7 @@ void upMargS(
 }
 
 // Downward-Recursion(Smoothed)
-void dnInit(
+void dnInitS(
       double *alpha1, double *beta1,
       int nobs, int nk
 ) {
