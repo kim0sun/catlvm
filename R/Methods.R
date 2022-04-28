@@ -263,24 +263,53 @@ print.catlvm <- function(x, ...) {
 }
 undebug(catlvm)
 lca   = catlvm(L1[3] ~ X1 + X2 + X3)
-lcas  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3)
-jlca  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, JC[3] ~ L1 + L2 + L3)
-lcpa  = catlvm(L1[3] ~ X1 + X2 + X3, L2[3] ~ Y1 + Y2 + Y3, L3[3] ~ Z1 + Z2 + Z3, PF[3] ~ L1 + L2 + L3,
+lcas  = catlvm(L1[3] ~ X1 + X2 + X3,
+               L2[3] ~ Y1 + Y2 + Y3,
+               L3[3] ~ Z1 + Z2 + Z3)
+jlca  = catlvm(L1[3] ~ X1 + X2 + X3,
+               L2[3] ~ Y1 + Y2 + Y3,
+               L3[3] ~ Z1 + Z2 + Z3,
+               JC[3] ~ L1 + L2 + L3)
+lcpa  = catlvm(L1[3] ~ X1 + X2 + X3,
+               L2[3] ~ Y1 + Y2 + Y3,
+               L3[3] ~ Z1 + Z2 + Z3,
+               PF[3] ~ L1 + L2 + L3,
               constraints = list(c("L1", "L2", "L3")))
-jlcpa = catlvm(L1[3] ~ X11 + X21 + X31, M1[3] ~ Y11 + Y21 + Y31, N1[3] ~ Z11 + Z21 + Z31,
-               L2[3] ~ X12 + X22 + X32, M2[3] ~ Y12 + Y22 + Y32, N2[3] ~ Z12 + Z22 + Z32,
-               L3[3] ~ X13 + X23 + X33, M3[3] ~ Y13 + Y23 + Y33, N3[3] ~ Z13 + Z23 + Z33,
-               J1[3] ~ L1 + M1 + N1, J2[3] ~ L2 + M2 + N2, J3[3] ~ L3 + M3 + N3,
+jlcpa = catlvm(L1[3] ~ X11 + X21 + X31,
+               M1[3] ~ Y11 + Y21 + Y31,
+               N1[3] ~ Z11 + Z21 + Z31,
+               L2[3] ~ X12 + X22 + X32,
+               M2[3] ~ Y12 + Y22 + Y32,
+               N2[3] ~ Z12 + Z22 + Z32,
+               L3[3] ~ X13 + X23 + X33,
+               M3[3] ~ Y13 + Y23 + Y33,
+               N3[3] ~ Z13 + Z23 + Z33,
+               J1[3] ~ L1 + M1 + N1,
+               J2[3] ~ L2 + M2 + N2,
+               J3[3] ~ L3 + M3 + N3,
                JP[3] ~ J1 + J2 + J3,
-               constraints = list(c("L1", "L2", "L3"), c("M1", "M2", "M3"), c("N1", "N2", "N3")))
-lta = catlvm(L1[3] ~ X11 + X21 + X31, L2[3] ~ X12 + X22 + X32, L3[3] ~ X13 + X23 + X33, L1 ~ L2, L2 ~ L3,
+               constraints = list(c("L1", "L2", "L3"),
+                                  c("M1", "M2", "M3"),
+                                  c("N1", "N2", "N3")))
+lta = catlvm(L1[3] ~ X11 + X21 + X31,
+             L2[3] ~ X12 + X22 + X32,
+             L3[3] ~ X13 + X23 + X33,
+             L1 ~ L2, L2 ~ L3,
              constraints = list(c("L1", "L2", "L3")))
-lcawg = catlvm(LG[3] ~ Z1 + Z2 + Z3, LC[3] ~ X1 + X2 + X3, LG ~ LC)
-lcpawg = catlvm(LG[3] ~ Z1 + Z2 + Z3, LG ~ P1,
-                L1[3] ~ X11 + X12 + X13, L2[3] ~ X21 + X22 + X23, L3[3] ~ X31 + X32 + X33,
+lcawg = catlvm(LG[3] ~ Z1 + Z2 + Z3,
+               LC[3] ~ X1 + X2 + X3,
+               LG ~ LC)
+lcpawg = catlvm(LG[3] ~ Z1 + Z2 + Z3,
+                LG ~ P1,
+                L1[3] ~ X11 + X12 + X13,
+                L2[3] ~ X21 + X22 + X23,
+                L3[3] ~ X31 + X32 + X33,
                 P1[3] ~ L1 + L2 + L3,
                 constraints = list(c("L1", "L2", "L3")))
-formula = list(L1[3] ~ X11 + X21 + X31, L2[3] ~ X12 + X22 + X32, L3[3] ~ X13 + X23 + X33, L1 ~ L2, L2 ~ L3)
+formula = list(L1[3] ~ X11 + X21 + X31,
+               L2[3] ~ X12 + X22 + X32,
+               L3[3] ~ X13 + X23 + X33,
+               L1 ~ L2, L2 ~ L3)
 plot(lcpawg)
 {
    object = lcas
