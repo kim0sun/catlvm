@@ -14,40 +14,118 @@ int sample1(int n, double *prob) {
 }
 
 // [[Rcpp::export]]
-NumericVector pi_gnr(int nk) {
-   NumericVector pi(nk);
+NumericMatrix pi_gnr(int nk, int nobs) {
+   NumericMatrix pi(nk, nobs);
    pi.fill(-log(nk));
    return pi;
 }
 
+// [[Rcpp::export]]
+NumericMatrix beta0_gnr(int nk, int p) {
+   NumericMatrix beta(nk - 1, p);
+   beta.fill(0);
+   return beta;
+}
 
 // [[Rcpp::export]]
-NumericMatrix tau_gnr(int nk, int nl) {
-   NumericMatrix tau(nk, nl);
+NumericVector beta2pi(
+   NumericVector beta, NumericVector x,
+   int nk, int np, int nobs
+) {
+   NumericVector pi(nobs * nk);
+   double *ppi = pi.begin();
+   double *px = x.begin();
+   for (int i = 0; i < nobs; i ++) {
+      double sl = 1;
+      double *pb = beta.begin();
+      for (int k = 0; k < nk - 1; k ++) {
+         for (int p = 0; p < np; p ++) {
+            ppi[k] += pb[p] * px[p];
+         }
+         sl += exp(ppi[k]);
+         pb += np;
+      }
+
+      for (int k = 0; k < nk; k ++) {
+         ppi[k] -= log(sl);
+      }
+      ppi += nk;
+      px  += np;
+   }
+   return pi;
+}
+
+// [[Rcpp::export]]
+NumericMatrix tau_gnr(int nk, int nl, int nobs) {
+   NumericMatrix tau(nk * nl, nobs);
+   NumericMatrix ntau(nk, nl);
    double *ptau = tau.begin();
 
    for (int l = 0; l < nl; l ++) {
       NumericVector p = runif(nk, 0, 1);
-      for (int k = 0; k < nk; k ++) {
-         ptau[k] = log(p[k]) - log(sum(p));
+      ntau.column(l) = log(p) - log(sum(p));
+   }
+   for (int i = 0; i < nobs; i ++) {
+      double *pntau = ntau.begin();
+      for (int l = 0; l < nl; l ++) {
+         for (int k = 0; k < nk; k ++)
+            ptau[k] = pntau[k];
+         pntau += nk;
+         ptau  += nk;
       }
-      ptau += nk;
    }
 
    return tau;
 }
 
 void prev_gnr(
-      double *prev, double *upr, double *tau,
-      int nobs, int nk, int nl
+   double *prev, double *upr, double *tau,
+   int nobs, int nk, int nl
 ) {
-   for (int l = 0; l < nl; l ++) {
-      for (int k = 0; k < nk; k ++)
-         prev[k] += exp(tau[k] + upr[l]);
-      tau += nk;
+   for (int i = 0; i < nobs; i ++) {
+      for (int l = 0; l < nl; l ++) {
+         for (int k = 0; k < nk; k ++)
+            prev[k] += exp(tau[k] + upr[l]);
+         tau += nk;
+      }
+      prev += nk;
+      upr  += nl;
    }
 }
 
+// [[Rcpp::export]]
+NumericVector beta1_gnr(int nk, int nl, int p) {
+   return rnorm((nk - 1) * nl * p, 0, 0.1);
+}
+
+// [[Rcpp::export]]
+NumericMatrix beta2tau(
+   NumericVector beta, NumericMatrix x,
+   int nk, int nl, int np, int nobs
+) {
+   NumericMatrix tau(nk * nl, nobs);
+   double *ptau = tau.begin();
+   double *px = x.begin();
+   for (int i = 0; i < nobs; i ++) {
+      double *pbeta = beta.begin();
+      for (int l = 0; l < nl; l ++) {
+         double sl = 1;
+         for (int k = 0; k < nk - 1; k ++) {
+            for (int p = 0; p < np; p ++) {
+               ptau[k] += pbeta[p] * px[p];
+            }
+            sl += exp(ptau[k]);
+            pbeta += np;
+         }
+         for (int k = 0; k < nk; k ++) {
+            ptau[k] -= log(sl);
+         }
+         ptau += nk;
+      }
+      px += np;
+   }
+   return tau;
+}
 
 // [[Rcpp::export]]
 NumericVector rho_gnr(int nk, IntegerVector ncat) {
@@ -69,18 +147,20 @@ NumericVector rho_gnr(int nk, IntegerVector ncat) {
 // [[Rcpp::export]]
 IntegerVector root_gnr(
       int nobs, int nk,
-      Nullable<NumericVector> prob = R_NilValue
+      Nullable<NumericMatrix> prob = R_NilValue
 ) {
-   NumericVector pi;
+   NumericMatrix pi;
    if (prob.isNull()) {
-      pi = pi_gnr(nk);
+      pi = pi_gnr(nk, nobs);
    } else {
-      pi = as<NumericVector>(prob);
+      pi = as<NumericMatrix>(prob);
    }
 
    IntegerVector cls(nobs);
+   double *ppi = pi.begin();
    for (int i = 0; i < nobs; i ++) {
-      cls[i] = sample1(nk, pi.begin());
+      cls[i] = sample1(nk, ppi);
+      ppi += nk;
    }
 
    return cls;
@@ -88,12 +168,12 @@ IntegerVector root_gnr(
 
 // [[Rcpp::export]]
 IntegerVector cls_gnr(
-      int nobs, int nk, int nl, IntegerVector v,
-      Nullable<NumericMatrix> prob = R_NilValue
+   int nobs, int nk, int nl, IntegerVector v,
+   Nullable<NumericMatrix> prob = R_NilValue
 ) {
    NumericMatrix tau;
    if (prob.isNull()) {
-      tau = tau_gnr(nk, nl);
+      tau = tau_gnr(nl, nk, nobs);
    } else {
       tau = as<NumericMatrix>(prob);
    }
@@ -101,17 +181,19 @@ IntegerVector cls_gnr(
    IntegerVector cls(nobs);
    double *ptau = tau.begin();
    for (int i = 0; i < nobs; i ++) {
-      cls[i] = sample1(nk, ptau + v[i] * nk);
+      NumericMatrix tau_l(nk, nl, ptau);
+      cls[i] = sample1(nk, ptau +v[i] * nk);
+      ptau += nk * nl;
    }
 
    return cls;
 }
 
 // [[Rcpp::export]]
-IntegerMatrix y_gnr(
-      int nobs, int nk, IntegerVector ncat,
-      IntegerVector cls,
-      Nullable<NumericVector> prob = R_NilValue
+IntegerVector y_gnr(
+   int nobs, int nk, IntegerVector ncat,
+   IntegerVector cls,
+   Nullable<NumericVector> prob = R_NilValue
 ) {
    NumericVector rho;
    if (prob.isNull()) {
@@ -121,7 +203,7 @@ IntegerMatrix y_gnr(
    }
 
    int nvar = ncat.length();
-   IntegerMatrix y(nvar, nobs);
+   IntegerVector y(nobs * nvar);
    for (int i = 0; i < nobs; i ++) {
       double *pos = rho.begin() + cls[i] * sum(ncat);
       for (int m = 0; m < nvar; m ++) {
@@ -149,10 +231,9 @@ List ysim(
    if (ulv.isNotNull() && vlv.isNotNull()) {
       IntegerVector u = as<IntegerVector>(ulv);
       IntegerVector v = as<IntegerVector>(vlv);
-      for (int d = 0; d < nedge; d ++) {
+      for (int d = nedge - 1; d > -1; d --)
          cls[u[d]] = cls_gnr(nsim, nclass[u[d]], nclass[v[d]],
                              cls[v[d]], tau[cstr_edge[d]]);
-      }
    }
 
    List y(nleaf);
@@ -172,8 +253,8 @@ List ysim(
 
 // Upward-Recursion
 void upInit(
-      int *y, const double *ptr_rho, double *lambda,
-      int nk, int nobs, int nvar, IntegerVector ncat
+   int *y, const double *ptr_rho, double *lambda,
+   int nk, int nobs, int nvar, IntegerVector ncat
 ) {
    for (int i = 0; i < nobs; i ++) {
       double *rho = (double *) ptr_rho;
@@ -190,17 +271,16 @@ void upInit(
 }
 
 void upRec(
-      double *lambda, double *jlambda, double *llambda,
-      const double *tau, int nobs, int nk, int nl
+   double *lambda, double *jlambda, double *llambda,
+   double *tau, int nobs, int nk, int nl
 ) {
    for (int i = 0; i < nobs; i ++) {
-      double *tau_ = (double*) tau;
       for (int l = 0; l < nl; l ++) {
          double ml = 0;
          for (int k = 0; k < nk; k ++)
-            ml += exp(tau_[k] + llambda[k]);
+            ml += exp(tau[k] + llambda[k]);
 
-         tau_ += nk;
+         tau += nk;
          jlambda[l] = log(ml);
          lambda[l] += log(ml);
       }
@@ -228,9 +308,10 @@ void dnInit(
          post[k] -= ll[i];
       }
 
+      pi    += nclass;
       alpha += nclass;
-      lambda += nclass;
-      post += nclass;
+      lambda  += nclass;
+      post  += nclass;
    }
 }
 
@@ -252,7 +333,7 @@ void dnRec(
          alpha[k] = log(svl);
          post[k] = alpha[k] + lambda[k] - ll[i];
       }
-
+      tau += nk * nl;
       joint += nk * nl; post += nk;
       alpha += nk; ualpha += nl;
       lambda += nk; ulambda += nl; jlambda += nl;
@@ -270,44 +351,137 @@ void updatePi(
       }
       post += nclass;
    }
-   for (int k = 0; k < nclass; k ++) {
-      pi[k] = log(npi[k]) - log(sum(npi));
+   for (int i = 0; i < nobs; i ++) {
+      for (int k = 0; k < nclass; k ++) {
+         pi[k] = log(npi[k]) - log(sum(npi));
+      }
+      pi += nclass;
+   }
+}
+
+void updateBeta0(
+   double *beta, double *pi,
+   double *post, double *x,
+   int nobs, int nclass, int ncov
+) {
+   arma::vec gradient((nclass - 1) * ncov);
+   arma::mat hessian((nclass - 1) * ncov, (nclass - 1) * ncov);
+   double *grad = gradient.begin();
+   double *hess = hessian.begin();
+   double ind = 0;
+   for (int i = 0; i < nobs; i ++) {
+      for (int k = 0; k < nclass - 1; k ++) {
+         for (int p = 0; p < ncov; p ++) {
+            // Gradient
+            grad[p] += (double) x[k] * (post[k] - pi[k]);
+            grad += ncov;
+
+            // Hessian
+            for (int l = 0; l < nclass - 1; l ++) {
+               if (k == l) ind = 1.0;
+               else ind = 0.0;
+               for (int q = 0; q < ncov; q++) {
+                  hess[q] += x[p] * x[q] *
+                     (post[k] * (ind - post[l]) -
+                     pi[k] * (ind - pi[l]) );
+               }
+               hess += ncov;
+            }
+         }
+      }
+      post += nclass;
+      pi   += nclass;
+      x    += ncov;
+   }
+
+   arma::vec delta = hessian.i() * gradient;
+   for (int n = 0; n < (nclass - 1) * ncov; n ++) {
+      beta[n] += delta[n];
    }
 }
 
 void cumTau(
-      double *joint, const double *ntau,
-      int nobs, int nk, int nl
+   double *joint, const double *ptr_ntau,
+   int nobs, int nk, int nl
 ) {
    for (int i = 0; i < nobs; i ++) {
-      double *ntau_ = (double *) ntau;
+      double *ntau = (double *) ptr_ntau;
       for (int l = 0; l < nl; l ++) {
          for (int k = 0; k < nk; k ++) {
-            ntau_[k] += exp(joint[k]);
+            ntau[k] += exp(joint[k]);
          }
          joint += nk;
-         ntau_ += nk;
+         ntau  += nk;
       }
    }
 }
 
 void updateTau(
-   double *tau, double *ntau,
+   double *tau, const double *ptr_ntau,
    int nobs, int nk, int nl
 ) {
-   for (int l = 0; l < nl; l ++) {
-      double stau = 0;
-      for (int k = 0; k < nk; k ++) {
-         stau += ntau[k];
+   for (int i = 0; i < nobs; i ++) {
+      double *ntau = (double *) ptr_ntau;
+      for (int l = 0; l < nl; l ++) {
+         double stau = 0;
+         for (int k = 0; k < nk; k ++) {
+            stau += ntau[k];
+         }
+         for (int k = 0; k < nk; k ++) {
+            tau[k] = log(ntau[k]) - log(stau);
+         }
+         ntau += nk;
+         tau  += nk;
       }
-      for (int k = 0; k < nk; k ++) {
-         tau[k] = log(ntau[k]) - log(stau);
-      }
-      ntau += nk;
-      tau  += nk;
    }
 }
 
+
+void updateBeta1(
+      double *beta, double *tau,
+      double *post, double *joint, double *x,
+      int nobs, int nk, int nl, int ncov
+) {
+   arma::vec gradient((nk - 1) * nl * ncov);
+   arma::mat hessian((nk - 1) * nl * ncov, (nk - 1) * nl * ncov);
+   double *grad = gradient.begin();
+   double *hess = hessian.begin();
+   double ind = 0;
+   for (int i = 0; i < nobs; i ++) {
+      for (int l = 0; l < nl; l ++) {
+         for (int k = 0; k < nk - 1; k ++) {
+            for (int p = 0; p < ncov; p ++) {
+               // Gradient
+               grad[p] += (double) x[k] * (joint[k] - tau[k] * post[l]);
+               grad += ncov;
+
+               // Hessian
+               for (int l = 0; l < nl; l ++) {
+                  for (int j = 0; j < nk - 1; l ++) {
+                     if (k == l) ind = 1.0;
+                     else ind = 0.0;
+                     for (int q = 0; q < ncov; q++) {
+                        hess[q] += x[p] * x[q] *
+                           post[k] * (ind - post[l] +
+                           (- tau[k] * (ind - tau[l])) );
+                     }
+                     hess += ncov;
+                  }
+               }
+            }
+         }
+      }
+
+      post += nk;
+      tau  += nk;
+      x    += ncov;
+   }
+
+   arma::vec shift = hessian.i() * gradient;
+   for (int n = 0; n < (nk - 1) * nl * ncov; n ++) {
+      beta[n] += shift[n];
+   }
+}
 
 void cumRho(
    const double *denom, const double *numer,
@@ -320,7 +494,7 @@ void cumRho(
       double *rho = (double *) old_rho;
       for (int k = 0; k < nk; k ++) {
          for (int m = 0; m < nvar; m ++) {
-            dnm[m] += exp(post[k]);
+         dnm[m] += exp(post[k]);
             if (y[m] > 0) nmr[y[m] - 1] += exp(post[k]);
             else {
                for (int r = 0; r < ncat[m]; r ++) {
@@ -338,8 +512,8 @@ void cumRho(
 }
 
 void updateRho(
-      double *rho, double *numer, double *denom,
-      int nobs, int nclass, int nvar, IntegerVector ncat
+   double *rho, double *numer, double *denom,
+   int nobs, int nclass, int nvar, IntegerVector ncat
 ) {
    for (int k = 0; k < nclass; k ++) {
       for (int m = 0; m < nvar; m ++) {
@@ -357,8 +531,7 @@ void updateRho(
 List emFit(
       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
       int nlv, IntegerVector root, IntegerVector leaf, IntegerVector cstr_leaf,
-      IntegerVector ulv, IntegerVector vlv,
-      IntegerVector cstr_root,  IntegerVector cstr_edge,
+      IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_root,  IntegerVector cstr_edge,
       IntegerVector nclass, IntegerVector nclass_leaf,
       IntegerVector nclass_u, IntegerVector nclass_v,
       LogicalVector init, List init_param,
@@ -402,14 +575,14 @@ List emFit(
    if (init[0]) {
       List piList = init_param["pi"];
       for (int r = 0; r < nroot; r ++) {
-         NumericVector pi_init = piList[r];
-         NumericVector pi = clone(pi_init);
+         NumericMatrix pi_init = piList[r];
+         NumericMatrix pi = clone(pi_init);
          ptr_pi[r] = pi.begin();
          lst_pi[r] = pi;
       }
    } else {
       for (int r = 0; r < nroot; r ++) {
-         NumericVector pi = pi_gnr(nclass[root[r]]);
+         NumericMatrix pi = pi_gnr(nclass[root[r]], nobs);
          ptr_pi[r] = pi.begin();
          lst_pi[r] = pi;
       }
@@ -428,7 +601,7 @@ List emFit(
       }
    } else {
       for (int d = 0; d < nedge_unique; d ++) {
-         NumericMatrix tau = tau_gnr(nclass_u[d], nclass_v[d]);
+         NumericMatrix tau = tau_gnr(nclass_u[d], nclass_v[d], nobs);
          NumericMatrix ntau(nclass_u[d], nclass_v[d]);
          ptr_tau[d] = tau.begin();
          ptr_ntau[d] = ntau.begin();
@@ -543,7 +716,6 @@ List emFit(
                ptr_post[u], ptr_joint[d], ptr_ll[cstr_root[d]]);
       }
 
-
       // (maximization-step)
       // pi updates
       for (int r = 0; r < nroot; r ++) {
@@ -581,12 +753,12 @@ List emFit(
                 nclass[u], ptr_post[u], ptr_rho[cstr_leaf[v]]);
          py += nobs * nvar[cstr_leaf[v]];
       }
+
       for (int v = 0; v < nleaf_unique; v ++) {
          updateRho(ptr_rho[v], ptr_nrho_n[v], ptr_nrho_d[v],
                    nobs, nclass_leaf[v], nvar[v], ncat[v]);
       }
 
-      currll = 0;
       for (int r = 0; r < nroot; r ++) {
          double *ll = ptr_ll[r];
          for (int i = 0; i < nobs; i ++) {
@@ -597,8 +769,7 @@ List emFit(
       if (lastll == R_NegInf) dll = R_PosInf;
       else dll = currll - lastll;
       if (verbose) {
-         Rcout << iter << ") ll: " << currll <<
-            " / diff: " << dll << "    \r" << std::flush;
+         Rcout << iter << ") ll: " << currll << " / diff: " << dll << "\r"<< std::flush;
       }
    }
    if (verbose) {
@@ -608,29 +779,27 @@ List emFit(
    // computes posterior probs
    double loglik = currll;
    List posterior(nlv);
-   for (int v = 0; v < nlv; v ++) {
+   for (int v = 0; v < nlv; v ++)
       posterior[v] = lst_post[v];
-   }
 
    List par;
    par["pi"] = lst_pi;
    par["tau"] = lst_tau;
    par["rho"] = lst_rho;
 
-   List res;
-   res["params"] = par;
-   res["posterior"] = posterior;
-   res["joint"] = lst_joint;
-   res["loglik"] = loglik;
+   List ret;
+   ret["param"] = par;
+   ret["posterior"] = posterior;
+   ret["loglik"] = loglik;
 
-   return res;
+   return ret;
 }
 
 
 // Upward-Recursion(Smoothed)
 void upInitS(
-      int *y, const double *ptr_rho, double *beta, double *prev,
-      int nk, int nobs, int nvar, IntegerVector ncat
+   int *y, const double *ptr_rho, double *beta, double *prev,
+   int nk, int nobs, int nvar, IntegerVector ncat
 ) {
    for (int i = 0; i < nobs; i ++) {
       double *rho = (double *) ptr_rho;
@@ -654,8 +823,8 @@ void upInitS(
 }
 
 void upRecS(
-      double *gamma, double *jbeta, double *lbeta,
-      double *prev, double *tau, int nobs, int nl, int nk
+   double *gamma, double *jbeta, double *lbeta,
+   double *prev, double *tau, int nobs, int nl, int nk
 ) {
    for (int i = 0; i < nobs; i ++) {
       for (int l = 0; l < nl; l ++) {
@@ -703,10 +872,10 @@ void dnInitS(
    }
 }
 void dnRecS(
-      double *post, double *joint, double *upost,
-      double *beta, double *jbeta,
-      double *prev, double *tau,
-      int nobs, int nl, int nk
+   double *post, double *joint, double *upost,
+   double *beta, double *jbeta,
+   double *prev, double *tau,
+   int nobs, int nl, int nk
 ) {
    for (int i = 0; i < nobs; i ++) {
       for (int k = 0; k < nk; k ++) {

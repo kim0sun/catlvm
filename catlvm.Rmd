@@ -40,18 +40,18 @@ $$
 \xi_{i(u)}(k) &= \textsf{Pr}\left( \mathbf{Y}_{i(u)} = \mathbf{y}_{i(u)} | C_u = k \right) = 
 \prod_{m = 1}^{M} \rho_{my_m|k}^{(u)}
 \\
-\lambda_{i(v)}(k) &= \xi_{i(v)}(k)
+\lambda_{i(u)}(k) &= \xi_{i(u)}(k), \quad \text{where} \quad \mathbf{c}(u) = \emptyset
 \\
-\lambda_{i(\rho(u), u)}(l) &= \sum_k \tau_{k, l}^{(u)} \lambda_{i(u)}(k)
+\lambda_{i(u, \rho(u))}(l) &= \sum_k \tau_{k, l}^{(u)} \lambda_{i(u)}(k)
 \\
-\lambda_{i(u)}(k) &= \left\{ \prod_{v\in \mathbf{c}(u)} \lambda_{i(u, v)}(k) \right\} \xi_{i(u)}(k)
+\lambda_{i(v)}(k) &= \left\{ \prod_{u\in \mathbf{c}(v)} \lambda_{i(u, v)}(k) \right\} \xi_{i(v)}(k)
 \end{aligned}
 $$
 
 Downward recursion
 $$
 \begin{aligned}
-\alpha_{i(u)}(k) = \sum_{l}\frac{\tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(l)  \lambda_{i(\rho(u))}(l)}{\lambda_{i(\rho(u), u)}(l)}
+\alpha_{i(u)}(k) = \sum_{l}\frac{\tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(l)  \lambda_{i(\rho(u))}(l)}{\lambda_{i(u, \rho(u))}(l)}
 \end{aligned}
 $$
 
@@ -64,10 +64,11 @@ $$
 &=\frac{ \textsf{Pr}\left( C_u = k, \bar{\mathbf{Y}}_{i(1\backslash u)} = \bar{\mathbf{y}}_{i(1\backslash u)} \right) \times \textsf{Pr}\left( \bar{\mathbf{Y}}_{i(u)} = \bar{\mathbf{y}}_{i(u)} | C_u = k \right) }{ \textsf{Pr}\left( \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) }
 \\
 &= \frac{ \alpha_{i(u)}(k) \lambda_{i(u)}(k) }{ \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j) }
-\\
-\\
+\end{aligned}
+$$
+$$
+\begin{aligned}
 \theta_{i(\rho(u), u)}(k,l) &= \textsf{Pr}\left( C_u = k, C_{\rho(u)} = l | \bar{\mathbf{Y}}_i = \bar{\mathbf{y}}_i \right) 
-\\
-&= \frac{\lambda_{i(u)}(k) \tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(j)  \lambda_{i(\rho(u))}(j)}{\lambda_{i(u, \rho(u))}(j) \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j)}
+= \frac{\lambda_{i(u)}(k) \tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(j)  \lambda_{i(\rho(u))}(j)}{\lambda_{i(u, \rho(u))}(j) \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j)}
 \end{aligned}
 $$

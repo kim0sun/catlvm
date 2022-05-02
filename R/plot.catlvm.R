@@ -1,28 +1,29 @@
 plot.catlvm <- function(x, abbreviation = FALSE, font = "Helvetica", ...) {
    if (abbreviation) {
-      manifest = lapply(x$measureModel$manifest, function(x)
+      manifest = lapply(x$struct$vars$manifest, function(x)
          paste0("'", x[1], " ~ ", x[length(x)], "'"))
    } else {
-      manifest = x$measureModel$manifest
+      manifest = x$struct$vars$manifest
    }
+   latent = x$struct$vars$latent
+
    var_def <- paste0(
       "node [shape = box]\n",
       paste(unlist(manifest), collapse = ", "),
       "\n\n node [shape = oval]\n",
-      paste(unique(c(x$measureModel$label, x$latentStruct$parent)), collapse = ", ")
+      paste(c(x$struct$label), collapse = ", ")
    )
    msr_path = paste(sapply(names(manifest), function(x)
       paste(x, "-> {", paste(manifest[[x]], collapse = ", "), "}")),
       collapse = "\n")
-   str_path <- paste0(x$latentStruct$formula, collapse = "\n")
-   cstr <-  split(x$measureModel$label, x$measureModel$constraints)
-   cst_rank <- paste(paste0("{rank = same; ", sapply(cstr, function(x)
-      paste(x, collapse = "; ")), ";}"), collapse = "\n")
+   str_path <- paste(sapply(names(latent), function(x)
+      paste(x, "-> {", paste(latent[[x]], collapse = ", "), "}")),
+      collapse = "\n")
 
    text <- paste0(
       "digraph { \n", "node[fontname = '", font, "']\n\n",
       var_def, "\n\n", msr_path, "\n",
-      str_path, "\n\n", cst_rank, "\n}"
+      str_path, "\n\n}"
    )
    DiagrammeR::grViz(text, ...)
    # return(text)
