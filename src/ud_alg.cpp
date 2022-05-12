@@ -13,13 +13,80 @@ int sample1(int n, double *prob) {
    return n - 1;
 }
 
+NumericVector logistic_pi(double *lpi, int nclass) {
+   NumericVector pi(nclass);
+   double denom = 0;
+   for (int i = 0; i < nclass - 1; i ++) {
+      pi[i] = lpi[i];
+      denom += exp(lpi[i]);
+   }
+   for (int i = 0; i < nclass; i ++)
+      pi[i] -= log(denom);
+
+   return pi;
+}
+
+NumericMatrix logistic_tau(double *ltau, int nk, int nl) {
+   NumericMatrix tau(nk, nl);
+   double *tau_ = tau.begin();
+   double denom = 0;
+   for (int l = 0; l < nl; l ++) {
+      denom = 0;
+      for (int k = 0; k < nk - 1; k ++) {
+         tau_[k] = ltau[k];
+         denom += exp(ltau[k]);
+      }
+      for (int k = 0; k < nk; k ++) {
+         tau_[k] -= log(denom);
+      }
+      tau_ += nk;
+      ltau += nk - 1;
+   }
+
+   return tau;
+}
+
+NumericVector logistic_rho(double *lrho, int nclass, IntegerVector ncat) {
+   NumericVector rho(nclass * sum(ncat));
+   double *rho_ = rho.begin();
+   double denom = 0;
+   for (int k = 0; k < nclass; k ++) {
+      denom = 0;
+      for (int m = 0; m < ncat.length(); m ++) {
+         for (int r = 0; r < ncat[m] - 1; r ++) {
+            rho_[r] = lrho[r];
+            denom += exp(lrho[r]);
+         }
+         for (int r = 0; r < ncat[m]; r ++) {
+            rho_[r] -= log(denom);
+         }
+         rho_ += ncat[m];
+         lrho += ncat[m] - 1;
+      }
+   }
+
+   return rho;
+}
+
+// [[Rcpp::export]]
+NumericVector elogdiri(NumericVector a) {
+   return digamma(a) - R::digamma(sum(a));
+}
+
+// [[Rcpp::export]]
+NumericVector plogdiri(
+   NumericVector a, NumericVector b
+) {
+   return lgammaf(sum(a)) - lgamma(a) +
+      sum( (a - 1) * elogdiri(b) );;
+}
+
 // [[Rcpp::export]]
 NumericVector pi_gnr(int nk) {
    NumericVector pi(nk);
    pi.fill(-log(nk));
    return pi;
 }
-
 
 // [[Rcpp::export]]
 NumericMatrix tau_gnr(int nk, int nl) {
@@ -138,8 +205,7 @@ List ysim(
       int nsim, int nlv, IntegerVector root, IntegerVector leaf,
       Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv,
       IntegerVector nclass, int nroot, int nleaf, int nedge, List ncat,
-      IntegerVector cstr_edge, IntegerVector cstr_leaf,
-      List pi, List tau, List rho, bool print_class
+      IntegerVector cstr_leaf, List pi, List tau, List rho, bool print_class
 ) {
    List cls(nlv);
 
@@ -151,7 +217,7 @@ List ysim(
       IntegerVector v = as<IntegerVector>(vlv);
       for (int d = 0; d < nedge; d ++) {
          cls[u[d]] = cls_gnr(nsim, nclass[u[d]], nclass[v[d]],
-                             cls[v[d]], tau[cstr_edge[d]]);
+                             cls[v[d]], tau[d]);
       }
    }
 
@@ -210,6 +276,24 @@ void upRec(
    }
 }
 
+void upRec2(
+      double *lambda, double *llambda, const double *tau,
+      int nobs, int nk, int nl
+) {
+   for (int i = 0; i < nobs; i ++) {
+      double *tau_ = (double*) tau;
+      for (int l = 0; l < nl; l ++) {
+         double ml = 0;
+         for (int k = 0; k < nk; k ++)
+            ml += exp(tau_[k] + llambda[k]);
+
+         lambda[l] += log(ml);
+      }
+      llambda += nk;
+      lambda  += nl;
+   }
+}
+
 // Downward-Recursion
 void dnInit(
    double *alpha, double *lambda, double *pi,
@@ -232,6 +316,23 @@ void dnInit(
       lambda += nclass;
       post += nclass;
    }
+}
+
+double getll(
+   double *lambda, double *pi,
+   int nobs, int nclass
+) {
+   double ll = 0;
+   for (int i = 0; i < nobs; i ++) {
+      double lik = 0;
+      for (int k = 0; k < nclass; k ++) {
+         lik += exp(pi[k] + lambda[k]);
+      }
+      ll += log(lik);
+
+      lambda += nclass;
+   }
+   return ll;
 }
 
 void dnRec(
@@ -293,7 +394,7 @@ void cumTau(
 
 void updateTau(
    double *tau, double *ntau,
-   int nobs, int nk, int nl
+   int nk, int nl
 ) {
    for (int l = 0; l < nl; l ++) {
       double stau = 0;
@@ -356,31 +457,27 @@ void updateRho(
 // [[Rcpp::export]]
 List emFit(
       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-      int nlv, IntegerVector root, IntegerVector leaf, IntegerVector cstr_leaf,
+      int nlv, IntegerVector root, IntegerVector leaf,
       IntegerVector ulv, IntegerVector vlv,
-      IntegerVector cstr_root,  IntegerVector cstr_edge,
+      IntegerVector tree_index, IntegerVector cstr_leaf,
       IntegerVector nclass, IntegerVector nclass_leaf,
-      IntegerVector nclass_u, IntegerVector nclass_v,
       LogicalVector init, List init_param,
-      int max_iter, double tol, bool verbose
+      int max_iter, double tol, bool verbose, int periter = 100
 ) {
    int *py;
    int nroot = root.length();
    int nleaf = leaf.length();
    int nedge = ulv.length();
    int nleaf_unique = nclass_leaf.length();
-   int nedge_unique = nclass_v.length();
 
    List lst_pi(nroot);
-   List lst_tau(nedge_unique);
+   List lst_tau(nedge);
    List lst_rho(nleaf_unique);
-   List lst_ntau(nedge_unique);
    List lst_nrho_d(nleaf_unique);
    List lst_nrho_n(nleaf_unique);
    std::vector<double*> ptr_pi(nroot);
-   std::vector<double*> ptr_tau(nedge_unique);
+   std::vector<double*> ptr_tau(nedge);
    std::vector<double*> ptr_rho(nleaf_unique);
-   std::vector<double*> ptr_ntau(nedge_unique);
    std::vector<double*> ptr_nrho_d(nleaf_unique);
    std::vector<double*> ptr_nrho_n(nleaf_unique);
 
@@ -417,23 +514,18 @@ List emFit(
 
    if (init[1]) {
       List tauList = init_param["tau"];
-      for (int d = 0; d < nedge_unique; d ++) {
+      for (int d = 0; d < nedge; d ++) {
          NumericMatrix tau_init = tauList[d];
          NumericMatrix tau = clone(tau_init);
-         NumericMatrix ntau(nclass_u[d], nclass_v[d]);
          ptr_tau[d] = tau.begin();
-         ptr_ntau[d] = ntau.begin();
          lst_tau[d] = tau;
-         lst_ntau[d] = ntau;
       }
    } else {
-      for (int d = 0; d < nedge_unique; d ++) {
-         NumericMatrix tau = tau_gnr(nclass_u[d], nclass_v[d]);
-         NumericMatrix ntau(nclass_u[d], nclass_v[d]);
+      for (int d = 0; d < nedge; d ++) {
+         int u = ulv[d]; int v = vlv[d];
+         NumericMatrix tau = tau_gnr(nclass[u], nclass[v]);
          ptr_tau[d] = tau.begin();
-         ptr_ntau[d] = ntau.begin();
          lst_tau[d] = tau;
-         lst_ntau[d] = ntau;
       }
    }
 
@@ -474,11 +566,11 @@ List emFit(
    }
 
    for (int d = 0; d < nedge; d ++) {
-      int lk = cstr_edge[d];
-      NumericMatrix joint(nclass_u[lk] * nclass_v[lk], nobs);
+      int u = ulv[d]; int v = vlv[d];
+      NumericMatrix joint(nclass[u] * nclass[v], nobs);
       ptr_joint[d] = joint.begin();
       lst_joint[d] = joint;
-      NumericMatrix jlambda(nclass_v[lk], nobs);
+      NumericMatrix jlambda(nclass[v], nobs);
       ptr_j[d] = jlambda.begin();
       lst_j[d] = jlambda;
    }
@@ -524,13 +616,14 @@ List emFit(
       for (int d = nedge - 1; d > -1; d --) {
          int u = ulv[d];
          int v = vlv[d];
-         upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[cstr_edge[d]],
+         upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[d],
                nobs, nclass[u], nclass[v]);
       }
 
       // initiate alpha
       for (int r = 0; r < nroot; r ++) {
-         dnInit(ptr_a[root[r]], ptr_l[root[r]], ptr_pi[r], ptr_post[root[r]],
+         dnInit(ptr_a[root[r]], ptr_l[root[r]],
+                ptr_pi[r], ptr_post[root[r]],
                 ptr_ll[r], nobs, nclass[root[r]]);
       }
 
@@ -539,8 +632,8 @@ List emFit(
          int u = ulv[d];
          int v = vlv[d];
          dnRec(ptr_a[u], ptr_a[v], ptr_l[u], ptr_l[v], ptr_j[d],
-               nobs, nclass[u], nclass[v], ptr_tau[cstr_edge[d]],
-               ptr_post[u], ptr_joint[d], ptr_ll[cstr_root[d]]);
+               nobs, nclass[u], nclass[v], ptr_tau[d], ptr_post[u],
+               ptr_joint[d], ptr_ll[tree_index[d]]);
       }
 
 
@@ -552,18 +645,11 @@ List emFit(
       }
 
       // tau updates
-      for (int d = 0; d < nedge_unique; d ++) {
-         NumericMatrix ntau = lst_ntau[d];
-         ntau.fill(0);
-      }
       for (int d = 0; d < nedge; d ++) {
          int u = ulv[d]; int v = vlv[d];
-         cumTau(ptr_joint[d], ptr_ntau[cstr_edge[d]],
-                nobs, nclass[u], nclass[v]);
-      }
-      for (int d = 0; d < nedge_unique; d ++) {
-         int nk = nclass_u[d]; int nl = nclass_v[d];
-         updateTau(ptr_tau[d], ptr_ntau[d], nobs, nk, nl);
+         NumericMatrix ntau(nclass[u], nclass[v]);
+         cumTau(ptr_joint[d], ntau.begin(), nobs, nclass[u], nclass[v]);
+         updateTau(ptr_tau[d], ntau.begin(), nclass[u], nclass[v]);
       }
 
       // rho updates
@@ -597,12 +683,23 @@ List emFit(
       if (lastll == R_NegInf) dll = R_PosInf;
       else dll = currll - lastll;
       if (verbose) {
-         Rcout << iter << ") ll: " << currll <<
-            " / diff: " << dll << "    \r" << std::flush;
+         Rcout << iter << " iteration  logLik " <<
+            std::fixed << std::setprecision(2) << currll << "  diff ";
+         if (dll > 1e-5) Rcout << std::setprecision(5) << dll;
+         else Rcout << std::scientific << std::setprecision(1) << dll;
+         Rcout << "           \r" << std::flush;
+
+         if (iter % periter == 0) {
+            Rcout << "\n" << std::flush;
+         }
       }
    }
    if (verbose) {
-      Rcout << std::endl;
+      if (iter % periter != 0) Rcout << "\n";
+      if (iter < max_iter)
+         Rcout << "Iteration Converged" << std::endl;
+      else
+         Rcout << "Iteration Not Converged" << std::endl;
    }
 
    // computes posterior probs
@@ -627,347 +724,83 @@ List emFit(
 }
 
 
-// Upward-Recursion(Smoothed)
-void upInitS(
-      int *y, const double *ptr_rho, double *beta, double *prev,
-      int nk, int nobs, int nvar, IntegerVector ncat
+// [[Rcpp::export]]
+double llFit(
+   NumericVector param, IntegerVector y, int nobs,
+   IntegerVector nvar, List ncat,
+   int nlv, IntegerVector root, IntegerVector leaf,
+   IntegerVector ulv, IntegerVector vlv,
+   IntegerVector tree_index, IntegerVector cstr_leaf,
+   IntegerVector nclass, IntegerVector nclass_leaf
 ) {
-   for (int i = 0; i < nobs; i ++) {
-      double *rho = (double *) ptr_rho;
-      double ni = 0;
-      for (int k = 0; k < nk; k ++) {
-         beta[k] = prev[k];
-         for (int m = 0; m < nvar; m ++) {
-            if (y[m] > 0)
-               beta[k] += rho[y[m] - 1];
-            rho += ncat[m];
-         }
-         ni += exp(beta[k]);
-      }
-      for (int k = 0; k < nk; k ++) {
-         beta[k] -= log(ni);
-      }
-      y += nvar;
-      prev += nk;
-      beta += nk;
+   int *py;
+   int nroot = root.length();
+   int nleaf = leaf.length();
+   int nedge = ulv.length();
+   int nleaf_unique = nclass_leaf.length();
+
+   List lst_pi(nroot);
+   List lst_tau(nedge);
+   List lst_rho(nleaf_unique);
+   std::vector<double*> ptr_pi(nroot);
+   std::vector<double*> ptr_tau(nedge);
+   std::vector<double*> ptr_rho(nleaf_unique);
+
+   List lst_l(nlv);
+   std::vector<double*> ptr_l(nlv);
+   double *param_ = param.begin();
+
+   for (int r = 0; r < nroot; r ++) {
+      NumericVector pi = logistic_pi(param_, nclass[root[r]]);
+      ptr_pi[r] = pi.begin();
+      lst_pi[r] = pi;
+      param_ += nclass[root[r]] - 1;
    }
-}
 
-void upRecS(
-      double *gamma, double *jbeta, double *lbeta,
-      double *prev, double *tau, int nobs, int nl, int nk
-) {
-   for (int i = 0; i < nobs; i ++) {
-      for (int l = 0; l < nl; l ++) {
-         double mll = 0;
-         for (int k = 0; k < nk; k ++)
-            mll += exp(tau[k] + lbeta[k] - prev[k]);
-         jbeta[l] = log(mll);
-         gamma[l] += log(mll);
-         tau += nk;
-      }
-
-      gamma += nl;
-      jbeta += nl;
-      lbeta += nk;
+   for (int d = 0; d < nedge; d ++) {
+      int u = ulv[d]; int v = vlv[d];
+      NumericMatrix tau = logistic_tau(param_, nclass[u], nclass[v]);
+      ptr_tau[d] = tau.begin();
+      lst_tau[d] = tau;
+      param_ += nclass[v] * (nclass[u] - 1);
    }
-}
 
-void upMargS(
-      double *beta, double *gamma, double *nu,
-      int nobs, int nk
-) {
-   for (int i = 0; i < nobs; i ++) {
-      double n = 0;
-      for (int k = 0; k < nk; k ++)
-         n += exp(gamma[k]);
-      nu[i] = log(n);
-      for (int k = 0; k < nk; k ++)
-         beta[k] -= nu[i];
-
-      beta  += nk;
-      gamma += nk;
+   for (int v = 0; v < nleaf_unique; v ++) {
+      IntegerVector ncatv = ncat[v];
+      NumericVector lrho = logistic_rho(param_, nclass_leaf[v], ncatv);
+      ptr_rho[v] = lrho.begin();
+      lst_rho[v] = lrho;
+      param_ += nclass_leaf[v] * sum(ncatv - 1);
    }
-}
 
-// Downward-Recursion(Smoothed)
-void dnInitS(
-      double *alpha1, double *beta1,
-      int nobs, int nk
-) {
-   for (int i = 0; i < nobs; i ++) {
-      for (int k = 0; k < nk; k ++)
-         alpha1[k] = beta1[k];
-      beta1  += nk;
-      alpha1 += nk;
+   for (int v = 0; v < nlv; v ++) {
+      NumericMatrix lambda(nclass[v], nobs);
+      ptr_l[v] = lambda.begin();
+      lst_l[v] = lambda;
    }
-}
-void dnRecS(
-      double *post, double *joint, double *upost,
-      double *beta, double *jbeta,
-      double *prev, double *tau,
-      int nobs, int nl, int nk
-) {
-   for (int i = 0; i < nobs; i ++) {
-      for (int k = 0; k < nk; k ++) {
-         double fwd = beta[k] - prev[k];
-         double sumb = 0;
-         for (int l = 0; l < nl; l ++) {
-            double bwd = tau[k + l * nk] + upost[l] - jbeta[l];
-            joint[k + l * nk] = fwd + bwd;
-            sumb += exp(bwd);
-         }
-         post[k] = fwd + log(sumb);
-      }
-      post += nk;
-      joint += nk * nl;
-      tau += nk * nl;
-   }
-}
 
-// // [[Rcpp::export]]
-// List emFitS(
-//       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-//       int nlv, IntegerVector root, IntegerVector leaf,
-//       IntegerVector ulv, IntegerVector vlv,
-//       IntegerVector cstr_leaf, IntegerVector cstr_edge,
-//       IntegerVector nclass, IntegerVector nclass_leaf,
-//       IntegerVector nclass_u, IntegerVector nclass_v,
-//       LogicalVector init, List init_param,
-//       int max_iter, double tol
-// ) {
-//    int *py;
-//    int nroot = root.length();
-//    int nleaf = leaf.length();
-//    int nedge = ulv.length();
-//    int nleaf_unique = nclass_leaf.length();
-//    int nedge_unique = nclass_v.length();
-//
-//    List lst_pi(nroot);
-//    List lst_tau(nedge_unique);
-//    List lst_rho(nleaf_unique);
-//    List lst_ntau(nedge_unique);
-//    List lst_nrho_d(nleaf_unique);
-//    List lst_nrho_n(nleaf_unique);
-//    std::vector<double*> ptr_pi(nroot);
-//    std::vector<double*> ptr_tau(nedge_unique);
-//    std::vector<double*> ptr_rho(nleaf_unique);
-//    std::vector<double*> ptr_ntau(nedge_unique);
-//    std::vector<double*> ptr_nrho_d(nleaf_unique);
-//    std::vector<double*> ptr_nrho_n(nleaf_unique);
-//
-//    List lst_a(nlv);
-//    List lst_b(nlv);
-//    List lst_j(nedge);
-//    std::vector<double*> ptr_a(nlv);
-//    std::vector<double*> ptr_b(nlv);
-//    std::vector<double*> ptr_j(nedge);
-//
-//    List lst_post(nlv);
-//    List lst_prev(nlv);
-//    List lst_joint(nedge);
-//    NumericVector ll(nobs);
-//    std::vector<double*> ptr_post(nlv);
-//    std::vector<double*> ptr_prev(nlv);
-//    std::vector<double*> ptr_joint(nedge);
-//
-//    if (init[0]) {
-//       List piList = init_param["pi"];
-//       for (int r = 0; r < nroot; r ++) {
-//          NumericMatrix pi_init = piList[r];
-//          NumericMatrix pi = clone(pi_init);
-//          ptr_pi[r] = pi.begin();
-//          ptr_prev[r] = pi.begin();
-//          lst_pi[r] = pi;
-//          lst_prev[r] = pi;
-//       }
-//    } else {
-//       for (int r = 0; r < nroot; r ++) {
-//          NumericMatrix pi = pi_gnr(nclass[root[r]], nobs);
-//          ptr_pi[r] = pi.begin();
-//          ptr_prev[r] = pi.begin();
-//          lst_pi[r] = pi;
-//          lst_prev[r] = pi;
-//       }
-//    }
-//
-//    if (init[1]) {
-//       List tauList = init_param["tau"];
-//       for (int d = 0; d < nedge_unique; d ++) {
-//          NumericMatrix tau_init = tauList[d];
-//          NumericMatrix tau = clone(tau_init);
-//          NumericMatrix ntau(nclass_u[d], nclass_v[d]);
-//          ptr_tau[d] = tau.begin();
-//          ptr_ntau[d] = ntau.begin();
-//          lst_tau[d] = tau;
-//          lst_ntau[d] = ntau;
-//       }
-//    } else {
-//       for (int d = 0; d < nedge_unique; d ++) {
-//          NumericMatrix tau = tau_gnr(nclass_u[d], nclass_v[d], nobs);
-//          NumericMatrix ntau(nclass_u[d], nclass_v[d]);
-//          ptr_tau[d] = tau.begin();
-//          ptr_ntau[d] = ntau.begin();
-//          lst_tau[d] = tau;
-//          lst_ntau[d] = ntau;
-//       }
-//    }
-//
-//    if (init[2]) {
-//       List rhoList = init_param["rho"];
-//       for (int v = 0; v < nleaf_unique; v ++) {
-//          IntegerVector ncatv = ncat[v];
-//          NumericVector rho_init = rhoList[v];
-//          NumericVector lrho = clone(rho_init);
-//          NumericVector denom(nclass_leaf[v] * nvar[v]);
-//          NumericVector numer(nclass_leaf[v] * sum(ncatv));
-//          ptr_rho[v] = lrho.begin();
-//          ptr_nrho_d[v] = denom.begin();
-//          ptr_nrho_n[v] = numer.begin();
-//          lst_rho[v] = lrho;
-//          lst_nrho_d[v] = denom;
-//          lst_nrho_n[v] = numer;
-//       }
-//    } else {
-//       for (int v = 0; v < nleaf_unique; v ++) {
-//          IntegerVector ncatv = ncat[v];
-//          NumericVector lrho = rho_gnr(nclass_leaf[v], ncatv);
-//          NumericVector denom(nclass_leaf[v] * nvar[v]);
-//          NumericVector numer(nclass_leaf[v] * sum(ncatv));
-//          ptr_rho[v] = lrho.begin();
-//          ptr_nrho_d[v] = denom.begin();
-//          ptr_nrho_n[v] = numer.begin();
-//          lst_rho[v] = lrho;
-//          lst_nrho_d[v] = denom;
-//          lst_nrho_n[v] = numer;
-//       }
-//    }
-//
-//    for (int d = 0; d < nedge; d ++) {
-//       int ud = cstr_edge[d];
-//       NumericMatrix joint(nclass_u[ud] * nclass_v[ud], nobs);
-//       ptr_joint[d] = joint.begin();
-//       lst_joint[d] = joint;
-//       NumericMatrix jbeta(nclass_v[ud], nobs);
-//       ptr_j[d] = jbeta.begin();
-//       lst_j[d] = jbeta;
-//    }
-//
-//    for (int v = 0; v < nlv; v ++) {
-//       NumericMatrix post(nclass[v], nobs);
-//       NumericMatrix alpha(nclass[v], nobs);
-//       NumericMatrix beta(nclass[v], nobs);
-//       ptr_post[v] = post.begin();
-//       ptr_a[v] = alpha.begin();
-//       ptr_b[v] = beta.begin();
-//       lst_post[v] = post;
-//       lst_a[v] = alpha;
-//       lst_b[v] = beta;
-//    }
-//
-//
-//    int iter = 0;
-//    double currll = R_NegInf;
-//    double lastll = R_NegInf;
-//    double dll = R_PosInf;
-//
-//    while ( (iter < max_iter) && (dll > tol) ) {
-//       iter ++;
-//       lastll = currll;
-//
-//       // beta, cleaning
-//       for (int v = 0; v < nlv; v ++) {
-//          NumericMatrix beta = lst_b[v];
-//          beta.fill(0);
-//       }
-//
-//       // (expectation-step)
-//       // initiate beta
-//       py = y.begin();
-//       for (int v = 0; v < nleaf; v ++) {
-//          upInit(py, ptr_rho[cstr_leaf[v]], ptr_b[leaf[v]], nclass[leaf[v]],
-//                 nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
-//          py += nobs * nvar[cstr_leaf[v]];
-//       }
-//
-//       // upward recursion
-//       for (int d = 0; d < nedge; d ++) {
-//          int u = ulv[d];
-//          int v = vlv[d];
-//          upRec(ptr_b[v], ptr_j[d], ptr_b[u], ptr_tau[cstr_edge[d]],
-//                nobs, nclass[u], nclass[v]);
-//       }
-//
-//       // initiate alpha
-//       ll.fill(0);
-//       for (int r = 0; r < nroot; r ++) {
-//          dnInit(ptr_a[root[r]], ptr_b[root[r]], ptr_pi[r], ptr_post[root[r]],
-//                 ll.begin(), nobs, nclass[root[r]]);
-//       }
-//
-//       // Downward recursion
-//       for (int d = nedge - 1; d > -1; d --) {
-//          int u = ulv[d];
-//          int v = vlv[d];
-//          dnRec(ptr_a[u], ptr_a[v], ptr_b[u], ptr_b[v], ptr_j[d],
-//                nobs, nclass[u], nclass[v], ptr_tau[cstr_edge[d]],
-//                                                   ptr_post[u], ptr_joint[d], ll);
-//       }
-//
-//       // (maximization-step)
-//       // pi updates
-//       for (int r = 0; r < nroot; r ++) {
-//          updatePi(ptr_pi[r], ptr_post[root[r]],
-//                   nobs, nclass[root[r]]);
-//       }
-//
-//       // tau updates
-//       for (int d = 0; d < nedge; d ++) {
-//          int u = ulv[d]; int v = vlv[d];
-//          cumTau(ptr_joint[d], ptr_ntau[cstr_edge[d]],
-//                 nobs, nclass[u], nclass[v]);
-//       }
-//       for (int d = 0; d < nedge_unique; d ++) {
-//          int nk = nclass_u[d]; int nl = nclass_v[d];
-//          updateTau(ptr_tau[d], ptr_ntau[d], nobs, nk, nl);
-//       }
-//
-//       // rho updates
-//       py = y.begin();
-//       for (int v = 0; v < nleaf; v ++) {
-//          int u = leaf[v];
-//          cumRho(ptr_nrho_d[cstr_leaf[v]], ptr_nrho_n[cstr_leaf[v]],
-//                 py, nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]],
-//                                                   nclass[u], ptr_post[u], ptr_rho[cstr_leaf[v]]);
-//          py += nobs * nvar[cstr_leaf[v]];
-//       }
-//
-//       for (int v = 0; v < nleaf_unique; v ++) {
-//          updateRho(ptr_rho[v], ptr_nrho_n[v], ptr_nrho_d[v],
-//                    nobs, nclass_leaf[v], nvar[v], ncat[v]);
-//       }
-//
-//       currll = sum(ll);
-//       if (lastll == R_NegInf) dll = R_PosInf;
-//       else dll = currll - lastll;
-//       Rcout << iter << ") ll: " << currll << " / diff: " << dll << std::endl;
-//    }
-//
-//    // computes posterior probs
-//    double loglik = currll;
-//    List posterior(nlv);
-//    for (int v = 0; v < nlv; v ++)
-//       posterior[v] = lst_post[v];
-//
-//    List par;
-//    par["pi"] = lst_pi;
-//    par["tau"] = lst_tau;
-//    par["rho"] = lst_rho;
-//
-//    List ret;
-//    ret["param"] = par;
-//    ret["posterior"] = posterior;
-//    ret["loglik"] = loglik;
-//
-//    return ret;
-// }
+   double ll = 0;
+   // initiate lambda
+   py = y.begin();
+   for (int v = 0; v < nleaf; v ++) {
+      upInit(py, ptr_rho[cstr_leaf[v]], ptr_l[leaf[v]],
+             nclass[leaf[v]], nobs,
+             nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
+      py += nobs * nvar[cstr_leaf[v]];
+   }
+
+   // upward recursion
+   for (int d = nedge - 1; d > -1; d --) {
+      int u = ulv[d];
+      int v = vlv[d];
+      upRec2(ptr_l[v], ptr_l[u], ptr_tau[d],
+            nobs, nclass[u], nclass[v]);
+   }
+
+   for (int r = 0; r < nroot; r ++) {
+      ll += getll(ptr_l[root[r]], ptr_pi[r],
+                  nobs, nclass[root[r]]);
+   }
+
+   return ll;
+}

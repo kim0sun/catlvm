@@ -1,3 +1,4 @@
+##' @export
 plot.catlvm <- function(x, abbreviation = FALSE, font = "Helvetica", ...) {
    if (abbreviation) {
       manifest = lapply(x$struct$vars$manifest, function(x)
@@ -25,8 +26,8 @@ plot.catlvm <- function(x, abbreviation = FALSE, font = "Helvetica", ...) {
       var_def, "\n\n", msr_path, "\n",
       str_path, "\n\n}"
    )
+
    DiagrammeR::grViz(text, ...)
-   # return(text)
 }
 
 

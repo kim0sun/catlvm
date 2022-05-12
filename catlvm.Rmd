@@ -72,3 +72,31 @@ $$
 = \frac{\lambda_{i(u)}(k) \tau_{k|l}^{(u)} \alpha_{i(\rho(u))}(j)  \lambda_{i(\rho(u))}(j)}{\lambda_{i(u, \rho(u))}(j) \sum_j \alpha_{i(v)}(j) \lambda_{i(v)}(j)}
 \end{aligned}
 $$
+
+
+# Hessian
+
+$$
+\frac{\partial \log L}{\partial \beta_{qj} \partial \beta_{pk}} = \sum_i x_{ip} x_{iq} \left\{ \zeta_{kj} (\theta_{ik} - \pi_{k}) - (\theta_{ik} \theta_{ij} - \pi_k \pi_j) \right\}
+$$
+
+$$
+\frac{\partial \log L}{\partial \beta_{qj} \partial \beta_{pk|l}} = \sum_i x_{ip} x_{iq} \left( \theta_{i(k,l)} - \tau_{k|l}\theta_{i(l)} \right) \left( \zeta_{kl} - \theta_{i(j)} \right)
+$$
+
+$$
+\frac{\partial \log L}{\partial \beta_{qj|m} \partial \beta_{pk|l}} = 
+\sum_i x_{ip} x_{iq} \left\{ \zeta_{ml} \left[ 
+\left( \theta_{i(k,l)} - \tau_{k|l}\theta_{i(l)} \right)\left( \zeta_{jk} - \tau_{j|l} \right) - 
+\tau_{k|l} \left( \theta_{i(j,l)} - \tau_{j|l}\theta_{i(l)} \right) \right] - 
+\left( \theta_{i(j,m)} - \tau_{j|m}\theta_{i(m)} \right) \left( \theta_{i(k,l)} - \tau_{k|l}\theta_{i(l)} \right)\right\}
+$$
+
+
+
+
+
+
+
+
+

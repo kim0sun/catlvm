@@ -1,9 +1,15 @@
 source("~/Documents/Github/catlvm/R/formula.R")
-source("~/Documents/Github/catlvm/R/constraints.R")
 source("~/Documents/Github/catlvm/R/args.R")
 source("~/Documents/Github/catlvm/R/catlvm.R")
-source("~/Documents/Github/catlvm/R/Methods.R")
-Rcpp::sourceCpp("~/Documents/Github/catlvm/src/ud_alg2.cpp")
+source("~/Documents/Github/catlvm/R/methods.R")
+source("~/Documents/Github/catlvm/R/simulate.catlvm.R")
+source("~/Documents/Github/catlvm/R/data.R")
+source("~/Documents/Github/catlvm/R/plot.catlvm.R")
+source("~/Documents/Github/catlvm/R/estimate.R")
+source("~/Documents/Github/catlvm/R/param_validate.R")
+source("~/Documents/Github/catlvm/R/output_fit.R")
+Rcpp::sourceCpp("~/Documents/Github/catlvm/src/ud_alg.cpp")
+library(dplyr)
 
 lca   = catlvm(L1[2] ~ X1 + X2 + X3)
 lcas  = catlvm(L1[2] ~ X1 + X2 + X3,
@@ -18,7 +24,8 @@ lcpa  = catlvm(L1[2] ~ X1 + X2 + X3,
                L2[2] ~ Y1 + Y2 + Y3,
                L3[2] ~ Z1 + Z2 + Z3,
                PF[2] ~ L1 + L2 + L3,
-               constraints = list(c("L1", "L2", "L3")))
+               constraints = list(c("L1", "L2", "L3"),
+                                  c("PF~L1", "PF->L2", "PF ->L3")))
 jlcpa = catlvm(L1[2] ~ X11 + X21 + X31,
                M1[2] ~ Y11 + Y21 + Y31,
                N1[2] ~ Z11 + Z21 + Z31,
@@ -35,11 +42,27 @@ jlcpa = catlvm(L1[2] ~ X11 + X21 + X31,
                constraints = list(c("L1", "L2", "L3"),
                                   c("M1", "M2", "M3"),
                                   c("N1", "N2", "N3")))
+jjcpa = catlvm(L1[2] ~ X11 + X21 + X31,
+               M1[2] ~ Y11 + Y21 + Y31,
+               N1[2] ~ Z11 + Z21 + Z31,
+               L2[2] ~ X12 + X22 + X32,
+               M2[2] ~ Y12 + Y22 + Y32,
+               N2[2] ~ Z12 + Z22 + Z32,
+               L3[2] ~ X13 + X23 + X33,
+               M3[2] ~ Y13 + Y23 + Y33,
+               N3[2] ~ Z13 + Z23 + Z33,
+               J1[2] ~ L1 + M1 + N1,
+               J2[2] ~ L2 + M2 + N2,
+               J3[2] ~ L3 + M3 + N3,
+               JP[2] ~ J1 + J2 + J3)
 lta = catlvm(L1[2] ~ X11 + X21 + X31,
              L2[2] ~ X12 + X22 + X32,
              L3[2] ~ X13 + X23 + X33,
              L1 ~ L2, L2 ~ L3,
-             constraints = list(c("L1", "L2", "L3")))
+             constraints = list(c("L1", "L2", "L3"),
+                                c("L1->L2", "L2->L3")))
+# constraint to 0
+# constraint edge X
 lcawg = catlvm(LG[2] ~ Z1 + Z2 + Z3,
                LC[2] ~ X1 + X2 + X3,
                LG ~ LC)
@@ -57,49 +80,42 @@ jlca; plot(jlca, abbreviation = TRUE)
 jlcpa; plot(jlcpa, abbreviation = TRUE)
 lta; plot(lta)
 
-lta %>% estimate(data = response)
-lta %>% estimate(data = response) %>%
-   regression(L1 ~ Cov1 + Cov2,
-              L2 ~ Cov1 + Cov2,
-              L3 ~ Cov1 + Cov2,
-              data = response)
+model <- lca
+sim <- model %>% simulate(2000)
+fit <- model %>% estimate(data = sim$response,
+                          control = list(init.param = sim$params))
+aggregate(posterior(fit), list(predict(fit)), mean)
+fit
+library(randomLCA)
+data(symptoms)
+dat = symptoms[rep(seq(symptoms$Freq), symptoms$Freq),]
 
-nsim = 1000
-niter = 200
-{
-   object = lta
-   y = simulate(object, nsim)
-   par = list()
-   for (iter in 1:niter) {
-      cat(iter, "\r")
-      y = simulate(object, nsim,
-                   tau = lapply(y$params$tau, exp),
-                   rho = lapply(y$params$rho, exp))
-      fit = emFit(y = unlist(y$response),
-                  nobs = y$args$nobs, nvar = y$args$nvar, ncat = y$args$ncat,
-                  nlv = y$args$nlv, root = y$args$root - 1, leaf =  y$args$leaf - 1,
-                  cstr_leaf = y$args$cstr_leaf - 1,
-                  ulv = y$args$u - 1, vlv = y$args$v - 1,
-                  cstr_root = y$args$cstr_root - 1, cstr_edge = y$args$cstr_edge - 1,
-                  nclass = y$args$nclass, nclass_leaf = y$args$nclass_leaf,
-                  nclass_u = y$args$nclass_u, nclass_v = y$args$nclass_v,
-                  init = rep(TRUE, 3), init_param =  y$params,
-                  max_iter = 1e4, tol = 1e-3, verbose = FALSE)
-      par[[iter]] = fit$params
-   }
-}
 
-lapply(y$params$pi, exp)
-lapply(1:length(y$params$pi), function(i) Reduce("+", lapply(par, function(x) exp(x$pi[[i]]))) / niter)
-lapply(y$params$tau, exp)
-lapply(1:length(y$params$tau), function(i) Reduce("+", lapply(par, function(x) exp(x$tau[[i]]))) / niter)
-lapply(y$params$rho, exp)
-lapply(1:length(y$params$rho), function(i) Reduce("+", lapply(par, function(x) exp(x$rho[[i]]))) / niter)
-#
-# lapply(y$params$pi, function(x) round(exp(x), 3))
-# lapply(fit$param$pi, function(x) round(exp(x), 3))
-# lapply(y$params$tau, function(x) round(exp(x), 3))
-# lapply(fit$param$tau, function(x) round(exp(x), 3))
-# lapply(y$params$rho, function(x) round(exp(x), 3))
-# lapply(fit$param$rho, function(x) round(exp(x), 3))
+lcpa_sym <- catlvm(
+   LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
+   LC2[3] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
+   LC3[3] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
+   LC4[3] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
+   LCP[2] ~ LC1 + LC2 + LC3 + LC4,
+   constraints = list(c("LC1", "LC2", "LC3", "LC4"))
+)
 
+lcpa_sym2 <- catlvm(
+   LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
+   LC2[3] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
+   LC3[3] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
+   LC4[3] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
+   LCP[2] ~ LC1 + LC2 + LC3 + LC4,
+   constraints = list(c("LC1", "LC2", "LC3", "LC4")),
+   data = dat
+)
+
+object = lcpa_sym2 %>% estimate()
+predict(object, "LC1")
+a = rho(object)
+
+lcpa_sym %>% estimate(data = dat)
+undebug(estimate.catlvm)
+
+library(randomLCA)
+data(symptoms)

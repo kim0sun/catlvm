@@ -84,21 +84,41 @@ combine_formula <- function(formula) {
    latent_vars <- lapply(vars, function(x) x[x %in% label])
    latent <- latent_vars[sapply(latent_vars, length) > 0]
 
-   list(nclass = lnc, edge = edge,
+   list(label = levels(lnc$ind),
+        nclass = lnc, edge = edge,
         vars = list(manifest = manifest,
                     latent = latent))
 }
 
+constr_leaf <- function(constraints, model_table) {
+   leaf <- model_table$edge$leaf
+   nclass <- model_table$nclass$values
+   leaf_constr <- letters[seq_len(length(leaf))]
 
-proc_formula <- function(formula) {
+   for (i in seq_along(constraints)) {
+      constr <- constraints[[i]]
+      if (!all(unlist(constr) %in% model_table$label)) next
+      leaf_constr[match(constr, leaf)] <- i
+   }
+
+   nclass_leaf <- nclass[leaf[!duplicated(leaf_constr)]]
+
+   list(leaf_constr = as.numeric(factor(leaf_constr)),
+        nclass_leaf = unname(nclass_leaf),
+        constr = constraints)
+}
+
+proc_formula <- function(formula, constraints) {
    formula <- sapply(formula, get_lformula)
    model_table <- combine_formula(formula)
+   constr <- constr_leaf(constraints, model_table)
 
-   list(label = levels(model_table$nclass$ind),
+   list(label = model_table$label,
         nclass = model_table$nclass$values,
         root = model_table$edge$root,
         leaf = model_table$edge$leaf,
         tree = model_table$edge$tree,
         edges = model_table$edge$edges,
-        vars = model_table$vars)
+        vars = model_table$vars,
+        constr = constr)
 }

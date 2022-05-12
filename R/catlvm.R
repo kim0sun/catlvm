@@ -1,20 +1,18 @@
+##' @export
 catlvm = function(
-   x = NULL, ..., data, subset, weight,
-   constraints = NULL
+   x = NULL, ..., data = NULL, constraints = NULL
 ) {
    if (!is.list(x)) formula <- list(x, ...)
    else formula <- x
 
-   latent_struct <- proc_formula(formula)
-   latent_constr <- proc_constr(constraints, struct)
-   # data_attributes <- proc_data(data, latent_struct)
+   struct <- proc_formula(formula, constraints)
+   data <- proc_data(data, struct)
 
    res = list()
-   res$struct <- latent_struct
-   res$constraints <- latent_constr
-   # res$data <- data_attributes
-   res$args <- args_return(res)
+   res$struct <- struct
+   res$data <- data
+   res$args <- args_return(struct, data)
 
-   class(res) = "catlvm"
+   class(res) <- "catlvm"
    res
 }
