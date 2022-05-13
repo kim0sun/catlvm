@@ -58,28 +58,12 @@ summary.catlvm = function(object, ...) {
 
 }
 
-##' @export
-catlvm.control <- function(
-   max.iter = 5000, tol = 1e-5, verbose = TRUE, per.iter = 1000,
-   init.param = NULL, contraints = NULL, ...
-) {
-   ctrl <- list(
-      max.iter = max.iter, tol = tol, verbose = verbose, per.iter = per.iter,
-      init.param = init.param, contraints = contraints
-   )
-
-   class(ctrl) <- "catlvm.control"
-   ctrl
-}
-
 #' @export
 print.catlvm.parameter <- function(x, ...) {
    y <- x
    attributes(y) <- attributes(x)[c("dim", "dimnames")]
    print.default(y)
 }
-
-
 
 ##' @export
 logLik.catlvm <- function(object, ...) {

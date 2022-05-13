@@ -1,7 +1,6 @@
-args_return <- function(struct, data) {
+args_return <- function(struct) {
    constr <- struct$constr
    nvar <- sapply(struct$vars$manifest, length)
-   if (!is.null(data)) ncat <- data$ncat
 
    args <- list(
       nlv = length(struct$label),
@@ -19,15 +18,20 @@ args_return <- function(struct, data) {
       nleaf_unique = length(constr$nclass_leaf),
       nvar = unname(nvar[!duplicated(constr$leaf)])
    )
-   if (!is.null(data)) {
-      args$nobs <- data$nobs
-      args$ncat <- unname(ncat[!duplicated(constr$leaf)])
-      npar_pi <- sum(args$nclass[args$root] - 1)
-      npar_tau <- (args$nclass[args$u] - 1) %*% args$nclass[args$v]
-      npar_rho <- sum(sapply(seq(args$nleaf_unique), function(v)
-         (sum(args$ncat[[v]]) - args$nvar[v]) * args$nclass_leaf[v]))
-      args$npar <- npar_pi + npar_tau + npar_rho
-   }
+
+   args
+}
+
+update_args <- function(args, data) {
+
+   args$nobs <- data$nobs
+   args$ncat <- unname(data$ncat[!duplicated(args$cstr_leaf)])
+
+   npar_pi <- sum(args$nclass[args$root] - 1)
+   npar_tau <- (args$nclass[args$u] - 1) %*% args$nclass[args$v]
+   npar_rho <- sum(sapply(seq(args$nleaf_unique), function(v)
+      (sum(args$ncat[[v]]) - args$nvar[v]) * args$nclass_leaf[v]))
+   args$npar <- npar_pi + npar_tau + npar_rho
 
    args
 }

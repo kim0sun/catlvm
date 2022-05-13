@@ -8,6 +8,8 @@ source("~/Documents/Github/catlvm/R/plot.catlvm.R")
 source("~/Documents/Github/catlvm/R/estimate.R")
 source("~/Documents/Github/catlvm/R/param_validate.R")
 source("~/Documents/Github/catlvm/R/output_fit.R")
+source("~/Documents/Github/catlvm/R/transform_param.R")
+source("~/Documents/Github/catlvm/R/catlvm.control.R")
 Rcpp::sourceCpp("~/Documents/Github/catlvm/src/ud_alg.cpp")
 library(dplyr)
 
@@ -73,19 +75,18 @@ lcpawg = catlvm(LG[2] ~ Z1 + Z2 + Z3,
                 L3[2] ~ X31 + X32 + X33,
                 P1[2] ~ L1 + L2 + L3,
                 constraints = list(c("L1", "L2", "L3")))
-
 lca; plot(lca)
 lcpa; plot(lcpa)
 jlca; plot(jlca, abbreviation = TRUE)
 jlcpa; plot(jlcpa, abbreviation = TRUE)
 lta; plot(lta)
 
-model <- lca
-sim <- model %>% simulate(2000)
-fit <- model %>% estimate(data = sim$response,
-                          control = list(init.param = sim$params))
-aggregate(posterior(fit), list(predict(fit)), mean)
-fit
+model <- lcpa
+sim <- model %>% simulate(1000)
+debug(estimate.catlvm)
+fit <- model %>% estimate(data = sim$response, method = "hybrid")
+fit$fit$posterior
+
 library(randomLCA)
 data(symptoms)
 dat = symptoms[rep(seq(symptoms$Freq), symptoms$Freq),]

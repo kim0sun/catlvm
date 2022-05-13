@@ -18,6 +18,11 @@ proc_data <- function(data, struct) {
       list(t(y), lev, nlev)
    })
 
+   yf <- do.call(rbind, lapply(data_attr, "[[", 1))
+   prl <- prelim.cat(t(yf))
+   logpost.cat(prl, em.cat(prl))
+
+
    list(nobs = nrow(mf),
         dimnames = dimnames(mf),
         y = unlist(lapply(data_attr, function(x) x[[1]])),

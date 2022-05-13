@@ -6,12 +6,15 @@ catlvm = function(
    else formula <- x
 
    struct <- proc_formula(formula, constraints)
-   data <- proc_data(data, struct)
 
    res = list()
    res$struct <- struct
-   res$data <- data
-   res$args <- args_return(struct, data)
+   res$args <- args_return(struct)
+   if (!is.null(data)) {
+      data <- proc_data(data, struct)
+      rest$data <- data
+      res$args <- update_args(args, data)
+   }
 
    class(res) <- "catlvm"
    res
