@@ -290,36 +290,78 @@ List ysim(
    return y;
 }
 
-// void calcSat(
-//    int *ymiss, int nobs, int nvar, IntegerVector ncat,
-//    double *ccount
-// ) {
-//    int npattern = 1;
-//    IntegerVector jumps(nvar);
-//    for (int m = 0; m < nvar; m ++) {
-//       jumps[m] = npattern;
-//       npattern *= ncat[m];
-//    }
-//
-//    int ind = 0;
-//    for (int m = 0; m < nvar; m ++) {
-//       if (y[m] > 0) {
-//          for (int r = 0; r < ncat[m]; r ++)
-//             ind += jumps[m] * (y[m] - 1);
-//       } else {
-//
-//       }
-//    }
-//    ccount[ind] += 1;
-//
-//    ccount.fill(0);
-// }
+void calcSat(
+   int *ymis, int nmis, int nvar,
+   IntegerVector ncat, IntegerVector jumps,
+   double *x, double *theta
+) {
+   int nmisp = 0;
+   int ind = 0;
+   int beta = 0;
+   int jmp = 0;
+   for (int i = 0; i < nmis; i ++) {
+      nmisp = 1;
+      for (int m = 0; m < nvar; m ++)
+         if (ymis[m] == 0) nmisp *= ncat[m];
 
-// [[Rcpp::export]]
+      beta = 0;
+      IntegerVector sind(nmisp);
+      for (int s = 0; s < nmisp; s ++) {
+         ind = 0;
+         jmp = 1;
+         for (int m = 0; m < nvar; m ++) {
+            if (ymis[m] > 0)
+               ind += jumps[m] * (ymis[m] - 1);
+            else {
+               ind += jumps[m] * s / jmp % ncat[m];
+               jmp *= ncat[m];
+            }
+         }
+         beta += theta[ind];
+         sind[s] = ind;
+      }
+
+      for (int s = 0; s < nmisp; s ++) {
+         x[sind[s]] += theta[sind[s]] / beta;
+      }
+   }
+}
+
+NumericVector calcfreq(
+   IntegerMatrix yobs, IntegerMatrix ymis,
+   int nvar, IntegerVector ncat
+) {
+   int nobs = yobs.nrow();
+   int nmis = ymis.nrow();
+   int *yobs_ = yobs.begin();
+   IntegerVector jumps(nvar);
+
+   int npattern = 1;
+   for (int m = 0; m < nvar; m ++) {
+      jumps[m] = npattern;
+      npattern *= ncat[m];
+   }
+   NumericVector ncell(npattern);
+
+   int ind = 0;
+   for (int i = 0; i < nobs; i ++) {
+      ind = 0;
+      for (int m = 0; m < nvar; m ++) {
+         ind += jumps[m] * (yobs_[m] - 1);
+      }
+
+      ncell[ind] += 1;
+      yobs_ += nvar;
+   }
+
+   return ncell;
+}
+
+
 double calcSll(
    double *cellp, int *cellc, int ncell
 ) {
-   double ll;
+   double ll = 0;
    for (int i = 0; i < ncell; i ++) {
       ll += cellc[i] * log(cellp[i]);
    }
