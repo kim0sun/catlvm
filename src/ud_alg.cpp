@@ -290,71 +290,36 @@ List ysim(
    return y;
 }
 
-void calcSat(
-   int *ymis, int nmis, int nvar,
-   IntegerVector ncat, IntegerVector jumps,
-   double *x, double *theta
-) {
-   int nmisp = 0;
-   int ind = 0;
-   int beta = 0;
-   int jmp = 0;
-   for (int i = 0; i < nmis; i ++) {
-      nmisp = 1;
-      for (int m = 0; m < nvar; m ++)
-         if (ymis[m] == 0) nmisp *= ncat[m];
-
-      beta = 0;
-      IntegerVector sind(nmisp);
-      for (int s = 0; s < nmisp; s ++) {
-         ind = 0;
-         jmp = 1;
-         for (int m = 0; m < nvar; m ++) {
-            if (ymis[m] > 0)
-               ind += jumps[m] * (ymis[m] - 1);
-            else {
-               ind += jumps[m] * s / jmp % ncat[m];
-               jmp *= ncat[m];
-            }
-         }
-         beta += theta[ind];
-         sind[s] = ind;
-      }
-
-      for (int s = 0; s < nmisp; s ++) {
-         x[sind[s]] += theta[sind[s]] / beta;
-      }
-   }
-}
-
+// [[Rcpp::export]]
 NumericVector calcfreq(
-   IntegerMatrix yobs, IntegerMatrix ymis,
-   int nvar, IntegerVector ncat
+   IntegerVector mis, IntegerVector nrep, int nmis,
+   IntegerVector xobs, int nc, int N,
+   double tol, int max_iter
 ) {
-   int nobs = yobs.nrow();
-   int nmis = ymis.nrow();
-   int *yobs_ = yobs.begin();
-   IntegerVector jumps(nvar);
+   const int *mis_begin = mis.begin();
+   NumericVector theta(nc, 1 / (double) nc);
+   NumericVector x(nc);
+   double beta = 0;
+   double diff = R_PosInf;
+   int iter = 0;
 
-   int npattern = 1;
-   for (int m = 0; m < nvar; m ++) {
-      jumps[m] = npattern;
-      npattern *= ncat[m];
-   }
-   NumericVector ncell(npattern);
-
-   int ind = 0;
-   for (int i = 0; i < nobs; i ++) {
-      ind = 0;
-      for (int m = 0; m < nvar; m ++) {
-         ind += jumps[m] * (yobs_[m] - 1);
+   while (diff > tol || iter < max_iter) {
+      iter ++;
+      for (int c = 0; c < nc; c ++) x[c] = xobs[c];
+      int *mis_ = (int*) mis_begin;
+      for (int i = 0; i < nmis; i ++) {
+         beta = 0;
+         for (int j = 0; j < nrep[i]; j ++)
+            beta += theta[mis_[j]];
+         for (int j = 0; j < nrep[i]; j ++)
+            x[mis_[j]] += theta[mis_[j]] / beta;
+         mis_ += nrep[i];
       }
-
-      ncell[ind] += 1;
-      yobs_ += nvar;
+      diff = max(abs(x / N - theta));
+      theta = x / N;
    }
 
-   return ncell;
+   return x;
 }
 
 

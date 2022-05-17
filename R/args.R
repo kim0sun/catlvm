@@ -23,15 +23,16 @@ args_return <- function(struct) {
 }
 
 update_args <- function(args, data) {
-
    args$nobs <- data$nobs
-   args$ncat <- unname(data$ncat[!duplicated(args$cstr_leaf)])
+   ncat <- data$ncat[!duplicated(args$cstr_leaf)]
+   names(ncat) <- letters[unique(args$cstr_leaf)]
+   args$ncat <- ncat
 
    npar_pi <- sum(args$nclass[args$root] - 1)
-   npar_tau <- (args$nclass[args$u] - 1) %*% args$nclass[args$v]
+   npar_tau <- c((args$nclass[args$u] - 1) %*% args$nclass[args$v])
    npar_rho <- sum(sapply(seq(args$nleaf_unique), function(v)
       (sum(args$ncat[[v]]) - args$nvar[v]) * args$nclass_leaf[v]))
-   args$npar <- npar_pi + npar_tau + npar_rho
+   args$npar <- c(pi = npar_pi, tau = npar_tau, rho = npar_rho)
 
    args
 }

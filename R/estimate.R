@@ -130,7 +130,7 @@ estimate.catlvm <- function(
    #                 control$verbose, control$per.iter)
    # }
    logit_par <- logit_param(log_par, args)
-   se_par <- se_param(logit_par, data, args)
+   se_logit <- se_logit_par(logit_par, data, args)
    posterior <- calcPost(
       log_par, data$y, args$nobs, args$nvar, args$ncat,
       args$nlv, args$nroot, args$nedge, args$nleaf, args$nleaf_unique,
@@ -142,7 +142,7 @@ estimate.catlvm <- function(
    fit$estimates = list(
       par = output_param(log_par, object$struct, args),
       logit = output_logit(logit_par, object$struct, args),
-      se_logit = output_se(se_par, object$struct, args)
+      se_logit = output_logit(se_logit$se, object$struct, args)
    )
    fit$loglik <- floglik(
       unlist(logit_par), data$y, args$nobs, args$nvar, args$ncat,
@@ -158,3 +158,5 @@ estimate.catlvm <- function(
    class(object) <- "catlvm.fit"
    object
 }
+
+

@@ -29,9 +29,9 @@ print.catlvm <- function(x, ...) {
 
 ##' @export
 print.catlvm.fit <- function(x, ...) {
-   pi <- x$fit$param$pi
-   tau <- x$fit$param$tau
-   rho <- x$fit$param$rho
+   pi <- x$fit$estimates$par$pi
+   tau <- x$fit$estimates$par$tau
+   rho <- x$fit$estimates$par$rho
 
    cat("\nCATegorical Latent Variable Model (estimated)\n")
 
@@ -40,8 +40,8 @@ print.catlvm.fit <- function(x, ...) {
    nc <- x$struct$nclass[x$args$root]
    mat <- matrix(NA, nr, max(nc))
    dimnames(mat) <- list(root = x$struct$root, class = seq(max(nc)))
-   for (r in seq(nr)) {
-      mat[r, seq(nc[r])] <- pi[[r]]
+   for (r in seq_len(nr)) {
+      mat[r, seq_len(nc[r])] <- pi[[r]]
    }
    print(mat, quote = FALSE, ...)
 

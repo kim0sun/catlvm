@@ -15,13 +15,11 @@ library(dplyr)
 
 lca   = catlvm(L1[2] ~ X1 + X2 + X3)
 lcas  = catlvm(L1[2] ~ X1 + X2 + X3,
-               L2[2] ~ Y1 + Y2 + Y3,
-               L3[2] ~ Z1 + Z2 + Z3,
-               L4[2] ~ W1 + W2 + W3)
+               L2[2] ~ Y1 + Y2 + Y3)
 jlca  = catlvm(L1[2] ~ X1 + X2 + X3,
-               L2[2] ~ Y1 + Y2 + Y3,
-               L3[2] ~ Z1 + Z2 + Z3,
-               JC[2] ~ L1 + L2 + L3)
+               L2[4] ~ Y1 + Y2 + Y3,
+               L3[4] ~ Z1 + Z2 + Z3,
+               JC[3] ~ L1 + L2 + L3)
 lcpa  = catlvm(L1[2] ~ X1 + X2 + X3,
                L2[2] ~ Y1 + Y2 + Y3,
                L3[2] ~ Z1 + Z2 + Z3,
@@ -81,10 +79,10 @@ jlca; plot(jlca, abbreviation = TRUE)
 jlcpa; plot(jlcpa, abbreviation = TRUE)
 lta; plot(lta)
 
-model <- lcpa
-sim <- model %>% simulate(1000)
-debug(estimate.catlvm)
-fit <- model %>% estimate(data = sim$response, method = "hybrid")
+
+object <- jlca
+sim <- object %>% simulate(1000)
+fit <- object %>% estimate(data = sim$response, method = "hybrid")
 fit$fit$posterior
 
 library(randomLCA)
