@@ -1,15 +1,14 @@
-rep_row <- function(x, level) {
-   na <- which(is.na(x))
-   replace <- as.matrix(expand.grid(level[na]))
-   m <- t(replicate(nrow(replace), x))
-   m[, na] <- replace
+rep_row <- function(x, lev) {
+   sb <- as.matrix(expand.grid(lev[x == 0]))
+   m <- t(replicate(nrow(sb), x))
+   m[, x == 0] <- sb
+
    cbind(m, x = 0)
 }
 
 match_na <- function(x, y) {
-   na <- is.na(x)
-   px <- paste(x[!na], collapse = "")
-   py <- apply(y[, !na], 1, paste, collapse = "")
+   px <- paste(x[x > 0], collapse = "")
+   py <- apply(y[, x > 0], 1, paste, collapse = "")
    which(px == py)
 }
 
@@ -21,36 +20,52 @@ stretch_data <- function(items, mf) {
    unlist(unname(y))
 }
 
-proc_saturated <- function(mf, items) {
-   mf[] <- lapply(mf, as.numeric)
-   lev <- lapply(mf, function(x) seq_len(max(x)))
+proc_saturated <- function(mf, items, ncat) {
+   lev <- lapply(ncat, seq_len)
+   if (all(unlist(mf) > 0)) {
+      yobs <- mf
+      yn <- aggregate(numeric(nrow(yobs)), yobs, length)
+      unique_y <- yn[, -ncol(yn)]
+      freq <- yn[, ncol(yn)]
+      loglik <- sum(freq * log(freq / sum(freq)))
 
-   if (anyNA(mf)) {
-      na_ind <- rowSums(is.na(mf)) > 0
+      res <- list(y = stretch_data(items, unique_y),
+                  nobs = nrow(unique_y),
+                  freq = freq, loglik = loglik)
+   } else {
+      na_ind <- rowSums(mf == 0) > 0
       yobs <- mf[!na_ind, , drop = FALSE]
       ymis <- mf[ na_ind, , drop = FALSE]
-   } else {
-      yobs <- mf
-      ymis <- mf[0,]
+
+      yobs0 <- aggregate(numeric(nrow(yobs)), yobs, length)
+      ymis0 <- aggregate(numeric(nrow(ymis)), ymis, length)
+      expand_y <- do.call(rbind, apply(ymis0[, -ncol(ymis0)], 1, rep_row,
+                                       lev, simplify = FALSE))
+      y0 <- rbind(yobs0, expand_y)
+
+      yn <- aggregate(y0[[ncol(y0)]], y0[-ncol(y0)], sum)
+      unique_y <- yn[, -ncol(y0)]
+      freq <- yn[, ncol(y0)]
+
+      mis_patt <- apply(ymis0[, -ncol(ymis0)], 1, match_na,
+                        unique_y, simplify = FALSE)
+      nrep <- as.numeric(sapply(mis_patt, length))
+      miss <- unlist(mis_patt) - 1
+
+      calc_mis <- calcfreq(miss, nrep, nrow(ymis0),
+                           ymis0[, ncol(ymis0)], freq,
+                           nrow(yn), nrow(mf), 1e-5, 100)
+
+      theta <- calc_mis$freq / sum(calc_mis$freq)
+      loglik <- sum(freq * log(theta)) + calc_mis$loglik
+
+      res <- list(y = stretch_data(items, unique_y),
+                  nobs = nrow(unique_y),
+                  freq = calc_mis$freq,
+                  loglik = loglik)
    }
 
-   yobs0 <- aggregate(numeric(nrow(yobs)), yobs, length)
-   ymis0 <- do.call(rbind, apply(ymis, 1, rep_row, lev, simplify = FALSE))
-   y0 <- rbind(yobs0, ymis0)
-   aggr_y <- aggregate(y0[[ncol(y0)]], y0[-ncol(y0)], sum)
-   uniq_y <- aggr_y[, -ncol(y0)]
-
-   mis_patt <- apply(ymis, 1, match_na, uniq_y)
-   nrep <- as.numeric(sapply(mis_patt, length))
-   miss <- unlist(mis_patt) - 1
-
-   freq <- calcfreq(miss, nrep, nrow(ymis), aggr_y[[ncol(aggr_y)]],
-                    nrow(aggr_y), nrow(mf), 1e-5, 100)
-   term <- terms_data(mi, lapply(uniq_y, factor))
-
-   list(y = stretch_data(items, uniq_y),
-        nobs = nrow(uniq_y),
-        freq = freq)
+   res
 }
 
 proc_data <- function(data, struct) {
@@ -61,6 +76,8 @@ proc_data <- function(data, struct) {
    mf[] <- lapply(mf, factor)
    level <- lapply(mf, levels)
    ncat <- sapply(mf, nlevels)
+   mf[] <- lapply(mf, as.numeric)
+   mf[is.na(mf)] = 0
    dims <- dimnames(mf)
 
    if (any(!unlist(items) %in% dims[[2]]))
@@ -68,7 +85,7 @@ proc_data <- function(data, struct) {
            paste(unlist(items)[!unlist(items) %in% dims[[2]]],
                  collapse = " "))
 
-   saturated_model <- proc_saturated(mf, items)
+   saturated_model <- proc_saturated(mf, items, ncat)
 
    list(y = stretch_data(items, mf),
         nobs = nrow(mf),

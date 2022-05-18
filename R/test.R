@@ -80,7 +80,7 @@ jlcpa; plot(jlcpa, abbreviation = TRUE)
 lta; plot(lta)
 
 
-object <- jlca
+object <- lca
 sim <- object %>% simulate(1000)
 fit <- object %>% estimate(data = sim$response, method = "hybrid")
 fit$fit$posterior

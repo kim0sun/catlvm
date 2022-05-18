@@ -1,7 +1,7 @@
 ##' @export
 simulate.catlvm <- function(
-   object, nsim = 500,
-   params = NULL, ...
+   object, nsim = 500, params = NULL,
+   ncat = ...
 ) {
    nlv <- object$args$nlv
    root <- object$args$root
@@ -22,7 +22,7 @@ simulate.catlvm <- function(
 
    nvar <- object$args$nvar
    ncat <- if (!is.null(object$args$ncat)) obejct$args$ncat
-   else lapply(nvar, function(x) rep(2, x))
+   else lapply(nvar, function(x) rep(5, x))
 
    pi <- params$pi
    tau <- params$tau

@@ -1,21 +1,3 @@
-bdiag <- function(x, ...) {
-   if (is.list(x)) mat = x
-   else mat = list(x, ...)
-   nr = sum(sapply(mat, NROW))
-   nc = sum(sapply(mat, NCOL))
-   ans = matrix(0, nr, nc)
-   ibegin = 1; iend = 0
-   jbegin = 1; jend = 0
-   for (m in mat){
-      iend = iend + NROW(m)
-      jend = jend + NCOL(m)
-      ans[ibegin:iend, jbegin:jend] = m
-      ibegin = ibegin + NROW(m)
-      jbegin = jbegin + NCOL(m)
-   }
-   return(ans)
-}
-
 logit_param <- function(param, args) {
    pi <- list()
    tau <- list()
@@ -65,6 +47,31 @@ se_logit_par <- function(logit_par, data, args) {
                      args$nclass, args$nclass_leaf))
 }
 
+bdiag <- function(x) {
+   nr = sum(sapply(x, nrow))
+   nc = sum(sapply(x, ncol))
+   ans = matrix(0, nr, nc)
+   ibegin = 1; iend = 0
+   jbegin = 1; jend = 0
+
+   for (m in x){
+      iend = iend + nrow(m)
+      jend = jend + ncol(m)
+      ans[ibegin:iend, jbegin:jend] = m
+      ibegin = ibegin + nrow(m)
+      jbegin = jbegin + ncol(m)
+   }
+
+   ans
+}
+
+jacobian <- function(x) {
+   len <- length(x)
+   diag(x, len + 1, len) - x ** 2
+}
+
+split_by <- function(x, y) split(x, rep(1:length(y), y))
+
 se_param <- function(covmat, log_par, args) {
    index = rep(1:3, args$npar)
    vcov_pi  <- covmat[index == 1, index == 1]
@@ -75,29 +82,11 @@ se_param <- function(covmat, log_par, args) {
    tau <- lapply(log_par$tau, exp)
    rho <- lapply(log_par$rho, exp)
 
-   jac_pi <- bdiag(lapply(pi, function(x) {
-      diagonal <- diag(x, length(x))
-      (diagonal - outer(x, x))[, -length(x), drop = FALSE]
-   }))
-
-   jac_tau <- bdiag(lapply(tau, function(x) {
-      bdiag(apply(x, 2, function(y) {
-         jacobian <- outer(y, y)
-         diagonal <- diag(y, length(y))
-         (diagonal - jacobian)[, -length(y), drop = FALSE]
-      }, simplify = FALSE))
-   }))
-
-   jac_rho <- bdiag(lapply(seq_along(rho), function(i) {
-      y <- matrix(rho[[i]], nrow = args$nclass_leaf[i], byrow = TRUE)
-      bdiag(lapply(split(y, seq_len(nrow(y))), function(x) {
-         bdiag(lapply(split(x, rep(1:args$nvar[i], args$ncat[[i]])), function(y) {
-            jacobian <- outer(y, y)
-            diagonal <- diag(y, length(y))
-            (diagonal - jacobian)[, -length(y), drop = FALSE]
-         }))
-      }))
-   }))
+   jac_pi <- bdiag(lapply(pi, jacobian))
+   jac_tau <- bdiag(lapply(tau, function(x)
+      bdiag(apply(x, 2, jacobian, simplify = FALSE))))
+   jac_rho <- bdiag(lapply(1:length(rho), function(x)
+      bdiag(lapply(split_by(rho[[x]], ncat[[x]]), jacobian))))
 
    se_pi <- diag(jac_pi %*% vcov_pi %*% t(jac_pi))
    se_pi[se_pi < 0] <- 0
