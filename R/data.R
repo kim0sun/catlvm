@@ -2,14 +2,7 @@ rep_row <- function(x, lev) {
    sb <- as.matrix(expand.grid(lev[x == 0]))
    m <- t(replicate(nrow(sb), x))
    m[, x == 0] <- sb
-
-   cbind(m, x = 0)
-}
-
-match_na <- function(x, y) {
-   px <- paste(x[x > 0], collapse = "")
-   py <- apply(y[, x > 0], 1, paste, collapse = "")
-   which(px == py)
+   m
 }
 
 split_by_name <- function(x, f) lapply(f, function(i) x[i])
@@ -24,13 +17,13 @@ proc_saturated <- function(mf, items, ncat) {
    lev <- lapply(ncat, seq_len)
    if (all(unlist(mf) > 0)) {
       yobs <- mf
-      yn <- aggregate(numeric(nrow(yobs)), yobs, length)
-      unique_y <- yn[, -ncol(yn)]
-      freq <- yn[, ncol(yn)]
+      y_aggr <- aggregate(numeric(nrow(yobs)), yobs, length)
+      y_unique <- y_aggr[, -ncol(y_aggr)]
+      freq <- y_aggr[, ncol(y_aggr)]
       loglik <- sum(freq * log(freq / sum(freq)))
 
-      res <- list(y = stretch_data(items, unique_y),
-                  nobs = nrow(unique_y),
+      res <- list(y = stretch_data(items, y_unique),
+                  nobs = nrow(y_unique),
                   freq = freq, loglik = loglik)
    } else {
       na_ind <- rowSums(mf == 0) > 0
@@ -39,28 +32,28 @@ proc_saturated <- function(mf, items, ncat) {
 
       yobs0 <- aggregate(numeric(nrow(yobs)), yobs, length)
       ymis0 <- aggregate(numeric(nrow(ymis)), ymis, length)
-      expand_y <- do.call(rbind, apply(ymis0[, -ncol(ymis0)], 1, rep_row,
-                                       lev, simplify = FALSE))
-      y0 <- rbind(yobs0, expand_y)
+      y_expand <- do.call(rbind, apply(
+         ymis0[, -ncol(ymis0)], 1, rep_row, lev, simplify = FALSE))
+      y0 <- rbind(yobs0, cbind(y_expand, x = 0))
 
-      yn <- aggregate(y0[[ncol(y0)]], y0[-ncol(y0)], sum)
-      unique_y <- yn[, -ncol(y0)]
-      freq <- yn[, ncol(y0)]
+      y_aggr <- aggregate(y0[[ncol(y0)]], y0[-ncol(y0)], sum)
+      y_unique <- y_aggr[, -ncol(y0)]
+      freq <- y_aggr[, ncol(y0)]
 
-      mis_patt <- apply(ymis0[, -ncol(ymis0)], 1, match_na,
-                        unique_y, simplify = FALSE)
-      nrep <- as.numeric(sapply(mis_patt, length))
-      miss <- unlist(mis_patt) - 1
+      nrep <- apply(ymis0[, -ncol(ymis0)], 1,
+                    function(x) prod(ncat[x == 0]))
+      miss <- match(apply(y_expand, 1, paste, collapse = ""),
+                    apply(y_unique, 1, paste, collapse = "")) - 1
 
       calc_mis <- calcfreq(miss, nrep, nrow(ymis0),
                            ymis0[, ncol(ymis0)], freq,
-                           nrow(yn), nrow(mf), 1e-5, 100)
+                           nrow(y_aggr), nrow(mf), 1e-5, 100)
 
       theta <- calc_mis$freq / sum(calc_mis$freq)
       loglik <- sum(freq * log(theta)) + calc_mis$loglik
 
-      res <- list(y = stretch_data(items, unique_y),
-                  nobs = nrow(unique_y),
+      res <- list(y = stretch_data(items, y_unique),
+                  nobs = nrow(y_unique),
                   freq = calc_mis$freq,
                   loglik = loglik)
    }
