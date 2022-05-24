@@ -1,6 +1,6 @@
 ##' @export
 catlvm = function(
-   x = NULL, ..., data = NULL, constraints = NULL
+   x, ..., data, constraints = NULL
 ) {
    if (!is.list(x)) formula <- list(x, ...)
    else formula <- x
@@ -10,10 +10,10 @@ catlvm = function(
    res = list()
    res$struct <- struct
    res$args <- args_return(struct)
-   if (!is.null(data)) {
+   if (!missing(data)) {
       data <- proc_data(data, struct)
-      rest$data <- data
-      res$args <- update_args(args, data)
+      res$data <- data
+      res$args <- update_args(res$args, data)
    }
 
    class(res) <- "catlvm"

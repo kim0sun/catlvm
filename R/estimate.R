@@ -129,6 +129,7 @@ estimate.catlvm <- function(
    #                 control$em.iterlim, control$em.tol,
    #                 control$verbose, control$per.iter)
    # }
+
    logit_par <- logit_param(log_par, args)
    se_logit <- se_logit_par(logit_par, data, args)
    posterior <- calcPost(
@@ -138,22 +139,21 @@ estimate.catlvm <- function(
       args$leaf - 1, args$cstr_leaf - 1, args$nclass, args$nclass_leaf
    )
 
-   fit = list()
-   fit$estimates = list(
-      par = output_param(log_par, object$struct, args),
+
+   object$estimates = list(
+      param = output_param(log_par, object$struct, args),
       logit = output_logit(logit_par, object$struct, args),
+      se_par = NULL,
       se_logit = output_logit(se_logit$se, object$struct, args)
    )
-   fit$loglik <- floglik(
+   object$llik <- calcll(
       unlist(logit_par), data$y, args$nobs, args$nvar, args$ncat,
       args$nlv, args$nroot, args$nedge, args$nleaf, args$nleaf_unique,
-      args$root - 1, args$u - 1, args$v - 1,
-      args$leaf - 1, args$cstr_leaf - 1,
-      args$nclass, args$nclass_leaf
+      args$root - 1, args$u - 1, args$v - 1, args$leaf - 1,
+      args$cstr_leaf - 1, args$nclass, args$nclass_leaf
    )
-   fit$posterior <- output_posterior(posterior, object$struct, data)
-   fit$convergence <- c(EM = em.convergence, nlm = nlm.convergence)
-   object$fit <- fit
+   object$posterior <- output_posterior(posterior, object$struct, data)
+   object$convergence <- c(EM = em.convergence, nlm = nlm.convergence)
 
    class(object) <- "catlvm.fit"
    object

@@ -29,9 +29,9 @@ print.catlvm <- function(x, ...) {
 
 ##' @export
 print.catlvm.fit <- function(x, digits = 5, ...) {
-   pi <- x$fit$estimates$par$pi
-   tau <- x$fit$estimates$par$tau
-   rho <- x$fit$estimates$par$rho
+   pi <- x$estimates$par$pi
+   tau <- x$estimates$par$tau
+   rho <- x$estimates$par$rho
 
    cat("CATegorical Latent Variable Model (estimated)\n")
 
@@ -82,7 +82,7 @@ print.catlvm.fit <- function(x, digits = 5, ...) {
 logLik.catlvm <- function(object, ...) {
    res <- if (is.null(obejct$fit)) NA
    else structure(
-      object$fit$loglik,
+      sum(object$loglik),
       df = object$args$npar,
       nobs = object$data$nobs
    )

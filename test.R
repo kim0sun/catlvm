@@ -1,17 +1,4 @@
-source("~/Documents/Github/catlvm/R/formula.R")
-source("~/Documents/Github/catlvm/R/args.R")
-source("~/Documents/Github/catlvm/R/catlvm.R")
-source("~/Documents/Github/catlvm/R/methods.R")
-source("~/Documents/Github/catlvm/R/simulate.catlvm.R")
-source("~/Documents/Github/catlvm/R/data.R")
-source("~/Documents/Github/catlvm/R/plot.catlvm.R")
-source("~/Documents/Github/catlvm/R/estimate.R")
-source("~/Documents/Github/catlvm/R/param_validate.R")
-source("~/Documents/Github/catlvm/R/output_fit.R")
-source("~/Documents/Github/catlvm/R/transform_param.R")
-source("~/Documents/Github/catlvm/R/catlvm.control.R")
-Rcpp::sourceCpp("~/Documents/Github/catlvm/src/ud_alg.cpp")
-library(dplyr)
+devtools::load_all()
 
 lca   = catlvm(L1[2] ~ X1 + X2 + X3)
 lcas  = catlvm(L1[2] ~ X1 + X2 + X3,
@@ -95,9 +82,9 @@ jlcpa; plot(jlcpa, abbreviation = TRUE)
 lta; plot(lta)
 
 library(dplyr)
-object <- jlcpa
+object <- lcpa
 sim <- object %>% simulate(1000)
-fit <- object %>% estimate(data = sim$response, method = "hybrid")
+fit <- object %>% estimate(data = sim$response, method = "em")
 fit$fit$posterior
 fit$fit$estimates
 
@@ -126,7 +113,8 @@ lcpa_sym2 <- catlvm(
 )
 
 object = lcpa_sym %>% estimate(data = dat)
-predict(object, "LC1")
+object2 = lcpa_sym2 %>% estimate()
+posterior(object, "LC1")
 a = rho(object)
 
 lcpa_sym %>% estimate(data = dat)
