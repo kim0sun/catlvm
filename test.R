@@ -10,7 +10,8 @@ source("~/Documents/Github/catlvm/R/param_validate.R")
 source("~/Documents/Github/catlvm/R/output_fit.R")
 source("~/Documents/Github/catlvm/R/transform_param.R")
 source("~/Documents/Github/catlvm/R/catlvm.control.R")
-Rcpp::sourceCpp("~/Documents/Github/catlvm/src/ud_alg.cpp")
+Rcpp::sourceCpp("~/Documents/Github/catlvm/src/catlvm.cpp")
+
 library(dplyr)
 
 lca   = catlvm(L1[2] ~ X1 + X2 + X3)

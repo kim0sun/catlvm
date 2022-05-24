@@ -11,122 +11,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// logit_pi
-NumericVector logit_pi(NumericVector pi, int nclass);
-RcppExport SEXP _catlvm_logit_pi(SEXP piSEXP, SEXP nclassSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type pi(piSEXP);
-    Rcpp::traits::input_parameter< int >::type nclass(nclassSEXP);
-    rcpp_result_gen = Rcpp::wrap(logit_pi(pi, nclass));
-    return rcpp_result_gen;
-END_RCPP
-}
-// logit_tau
-NumericMatrix logit_tau(NumericMatrix tau, int nk, int nl);
-RcppExport SEXP _catlvm_logit_tau(SEXP tauSEXP, SEXP nkSEXP, SEXP nlSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type tau(tauSEXP);
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    Rcpp::traits::input_parameter< int >::type nl(nlSEXP);
-    rcpp_result_gen = Rcpp::wrap(logit_tau(tau, nk, nl));
-    return rcpp_result_gen;
-END_RCPP
-}
-// logit_rho
-NumericVector logit_rho(NumericVector rho, IntegerVector ncat, int nclass);
-RcppExport SEXP _catlvm_logit_rho(SEXP rhoSEXP, SEXP ncatSEXP, SEXP nclassSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type rho(rhoSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type ncat(ncatSEXP);
-    Rcpp::traits::input_parameter< int >::type nclass(nclassSEXP);
-    rcpp_result_gen = Rcpp::wrap(logit_rho(rho, ncat, nclass));
-    return rcpp_result_gen;
-END_RCPP
-}
-// pi_gnr
-NumericVector pi_gnr(int nk);
-RcppExport SEXP _catlvm_pi_gnr(SEXP nkSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    rcpp_result_gen = Rcpp::wrap(pi_gnr(nk));
-    return rcpp_result_gen;
-END_RCPP
-}
-// tau_gnr
-NumericMatrix tau_gnr(int nk, int nl);
-RcppExport SEXP _catlvm_tau_gnr(SEXP nkSEXP, SEXP nlSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    Rcpp::traits::input_parameter< int >::type nl(nlSEXP);
-    rcpp_result_gen = Rcpp::wrap(tau_gnr(nk, nl));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rho_gnr
-NumericVector rho_gnr(int nk, IntegerVector ncat);
-RcppExport SEXP _catlvm_rho_gnr(SEXP nkSEXP, SEXP ncatSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type ncat(ncatSEXP);
-    rcpp_result_gen = Rcpp::wrap(rho_gnr(nk, ncat));
-    return rcpp_result_gen;
-END_RCPP
-}
-// root_gnr
-IntegerVector root_gnr(int nobs, int nk, Nullable<NumericVector> prob);
-RcppExport SEXP _catlvm_root_gnr(SEXP nobsSEXP, SEXP nkSEXP, SEXP probSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type nobs(nobsSEXP);
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type prob(probSEXP);
-    rcpp_result_gen = Rcpp::wrap(root_gnr(nobs, nk, prob));
-    return rcpp_result_gen;
-END_RCPP
-}
-// cls_gnr
-IntegerVector cls_gnr(int nobs, int nk, int nl, IntegerVector v, Nullable<NumericMatrix> prob);
-RcppExport SEXP _catlvm_cls_gnr(SEXP nobsSEXP, SEXP nkSEXP, SEXP nlSEXP, SEXP vSEXP, SEXP probSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type nobs(nobsSEXP);
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    Rcpp::traits::input_parameter< int >::type nl(nlSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type v(vSEXP);
-    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type prob(probSEXP);
-    rcpp_result_gen = Rcpp::wrap(cls_gnr(nobs, nk, nl, v, prob));
-    return rcpp_result_gen;
-END_RCPP
-}
-// y_gnr
-IntegerMatrix y_gnr(int nobs, int nk, IntegerVector ncat, IntegerVector cls, Nullable<NumericVector> prob);
-RcppExport SEXP _catlvm_y_gnr(SEXP nobsSEXP, SEXP nkSEXP, SEXP ncatSEXP, SEXP clsSEXP, SEXP probSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type nobs(nobsSEXP);
-    Rcpp::traits::input_parameter< int >::type nk(nkSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type ncat(ncatSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type cls(clsSEXP);
-    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type prob(probSEXP);
-    rcpp_result_gen = Rcpp::wrap(y_gnr(nobs, nk, ncat, cls, prob));
-    return rcpp_result_gen;
-END_RCPP
-}
 // ysim
 List ysim(int nsim, int nlv, IntegerVector root, IntegerVector leaf, Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv, IntegerVector nclass, int nroot, int nleaf, int nedge, List ncat, IntegerVector cstr_leaf, List pi, List tau, List rho, bool print_class);
 RcppExport SEXP _catlvm_ysim(SEXP nsimSEXP, SEXP nlvSEXP, SEXP rootSEXP, SEXP leafSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP nclassSEXP, SEXP nrootSEXP, SEXP nleafSEXP, SEXP nedgeSEXP, SEXP ncatSEXP, SEXP cstr_leafSEXP, SEXP piSEXP, SEXP tauSEXP, SEXP rhoSEXP, SEXP print_classSEXP) {
@@ -353,15 +237,6 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_catlvm_logit_pi", (DL_FUNC) &_catlvm_logit_pi, 2},
-    {"_catlvm_logit_tau", (DL_FUNC) &_catlvm_logit_tau, 3},
-    {"_catlvm_logit_rho", (DL_FUNC) &_catlvm_logit_rho, 3},
-    {"_catlvm_pi_gnr", (DL_FUNC) &_catlvm_pi_gnr, 1},
-    {"_catlvm_tau_gnr", (DL_FUNC) &_catlvm_tau_gnr, 2},
-    {"_catlvm_rho_gnr", (DL_FUNC) &_catlvm_rho_gnr, 2},
-    {"_catlvm_root_gnr", (DL_FUNC) &_catlvm_root_gnr, 3},
-    {"_catlvm_cls_gnr", (DL_FUNC) &_catlvm_cls_gnr, 5},
-    {"_catlvm_y_gnr", (DL_FUNC) &_catlvm_y_gnr, 5},
     {"_catlvm_ysim", (DL_FUNC) &_catlvm_ysim, 16},
     {"_catlvm_calcfreq", (DL_FUNC) &_catlvm_calcfreq, 9},
     {"_catlvm_par_gnr", (DL_FUNC) &_catlvm_par_gnr, 13},
