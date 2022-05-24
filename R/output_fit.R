@@ -23,9 +23,6 @@ output_param <- function(param, struct, args) {
          class = 1:ncol(rho[[v]])
       )
 
-      attr(rho[[v]], "variables") <- as.character(var[[v]])
-      attr(rho[[v]], "items") <- item[[v]]
-
       var_index <- cumsum(c(1, args$ncat[[v]][-args$nvar[v]]))
       rownames(rho[[v]])[var_index] <-
          paste0("1 (item ", seq(var_index), ")")
@@ -64,9 +61,6 @@ output_logit <- function(lparam, struct, args) {
             paste0(seq_len(x - 1), "/", x)),
          class = 1:ncol(rho[[v]])
       )
-
-      attr(rho[[v]], "variables") <- as.character(var[[v]])
-      attr(rho[[v]], "items") <- item[[v]]
 
       var_index <- cumsum(c(1, (args$ncat[[v]] - 1)[-args$nvar[v]]))
       rownames(rho[[v]])[var_index] <-

@@ -55,12 +55,27 @@ jjcpa = catlvm(L1[2] ~ X11 + X21 + X31,
                J2[2] ~ L2 + M2 + N2,
                J3[2] ~ L3 + M3 + N3,
                JP[2] ~ J1 + J2 + J3)
-lta = catlvm(L1[2] ~ X11 + X21 + X31,
-             L2[2] ~ X12 + X22 + X32,
-             L3[2] ~ X13 + X23 + X33,
+lta = catlvm(L1[3] ~ X11 + X21 + X31,
+             L2[3] ~ X12 + X22 + X32,
+             L3[3] ~ X13 + X23 + X33,
              L1 ~ L2, L2 ~ L3,
+             constraints = list(c("L1", "L2", "L3")))
+jlta = catlvm(L1[3] ~ X11 + X21 + X31,
+              M1[3] ~ Y11 + Y21 + Y31,
+              N1[3] ~ Z11 + Z21 + Z31,
+              L2[3] ~ X12 + X22 + X32,
+              M2[3] ~ Y12 + Y22 + Y32,
+              N2[3] ~ Z12 + Z22 + Z32,
+              L3[3] ~ X13 + X23 + X33,
+              M3[3] ~ Y13 + Y23 + Y33,
+              N3[3] ~ Z13 + Z23 + Z33,
+              J1[3] ~ L1 + M1 + N1,
+              J2[3] ~ L2 + M2 + N2,
+              J3[3] ~ L3 + M3 + N3,
+              J1 ~ J2, J2 ~ J3,
              constraints = list(c("L1", "L2", "L3"),
-                                c("L1->L2", "L2->L3")))
+                                c("M1", "M2", "N3"),
+                                c("N1", "N2", "N3")))
 # constraint to 0
 # constraint edge X
 lcawg = catlvm(LG[2] ~ Z1 + Z2 + Z3,
@@ -79,11 +94,12 @@ jlca; plot(jlca, abbreviation = TRUE)
 jlcpa; plot(jlcpa, abbreviation = TRUE)
 lta; plot(lta)
 
-
-object <- lca
+library(dplyr)
+object <- jlcpa
 sim <- object %>% simulate(1000)
 fit <- object %>% estimate(data = sim$response, method = "hybrid")
 fit$fit$posterior
+fit$fit$estimates
 
 library(randomLCA)
 data(symptoms)
@@ -109,7 +125,7 @@ lcpa_sym2 <- catlvm(
    data = dat
 )
 
-object = lcpa_sym2 %>% estimate()
+object = lcpa_sym %>% estimate(data = dat)
 predict(object, "LC1")
 a = rho(object)
 

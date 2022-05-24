@@ -56,7 +56,7 @@ estimate.catlvm <- function(
                         args$nclass, args$nclass_leaf,
                         is.init, init.param)
       lparam <- logit_param(params, args)
-      if (control$verbose) cat("\nnlm iteration begin.")
+      if (control$verbose) cat("\nnlm iteration begin.\n")
       nlm_fit <- nlm(
          floglik, unlist(lparam),
          y = data$y, nobs = args$nobs, nvar = args$nvar, ncat = args$ncat,
@@ -91,7 +91,7 @@ estimate.catlvm <- function(
       lparam <- logit_param(em_fit$params, args)
       posterior <- em_fit$posterior
       em.convergence <- em_fit$converged
-      if (control$verbose) cat(".. done. \nnlm iteration begin.")
+      if (control$verbose) cat(".. done. \nnlm iteration begin.\n")
 
       nlm_fit <- nlm(
          floglik, unlist(lparam),

@@ -13,7 +13,7 @@ stretch_data <- function(items, mf) {
    unlist(unname(y))
 }
 
-proc_saturated <- function(mf, items, ncat) {
+proc_saturated <- function(mf, ncat) {
    lev <- lapply(ncat, seq_len)
    if (all(unlist(mf) > 0)) {
       yobs <- mf
@@ -22,9 +22,7 @@ proc_saturated <- function(mf, items, ncat) {
       freq <- y_aggr[, ncol(y_aggr)]
       loglik <- sum(freq * log(freq / sum(freq)))
 
-      res <- list(y = stretch_data(items, y_unique),
-                  nobs = nrow(y_unique),
-                  freq = freq, loglik = loglik)
+      res <- list(y = y_unique, freq = freq, loglik = loglik)
    } else {
       na_ind <- rowSums(mf == 0) > 0
       yobs <- mf[!na_ind, , drop = FALSE]
@@ -45,17 +43,13 @@ proc_saturated <- function(mf, items, ncat) {
       miss <- match(apply(y_expand, 1, paste, collapse = ""),
                     apply(y_unique, 1, paste, collapse = "")) - 1
 
-      calc_mis <- calcfreq(miss, nrep, nrow(ymis0),
-                           ymis0[, ncol(ymis0)], freq,
-                           nrow(y_aggr), nrow(mf), 1e-5, 100)
+      misEM <- calcfreq(miss, nrep, nrow(ymis0),
+                        ymis0[, ncol(ymis0)], freq,
+                        nrow(y_aggr), nrow(mf), 1e-5, 100)
 
-      theta <- calc_mis$freq / sum(calc_mis$freq)
-      loglik <- sum(freq * log(theta)) + calc_mis$loglik
+      loglik <- sum(misEM$freq * log(misEM$theta)) + misEM$loglik
 
-      res <- list(y = stretch_data(items, y_unique),
-                  nobs = nrow(y_unique),
-                  freq = calc_mis$freq,
-                  loglik = loglik)
+      res <- list(y = y_unique, freq = calc_mis$freq, loglik = loglik)
    }
 
    res
@@ -78,13 +72,14 @@ proc_data <- function(data, struct) {
            paste(unlist(items)[!unlist(items) %in% dims[[2]]],
                  collapse = " "))
 
-   saturated_model <- proc_saturated(mf, items, ncat)
+   saturated <- proc_saturated(mf, ncat)
+   saturated$y <- stretch_data(items, saturated$y)
 
    list(y = stretch_data(items, mf),
         nobs = nrow(mf),
         ncat = split_by_name(ncat, items),
         level = split_by_name(level, items),
-        saturated = saturated_model,
+        saturated = saturated,
         dimnames = dims)
 }
 
