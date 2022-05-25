@@ -1,4 +1,5 @@
 devtools::load_all()
+library(dplyr)
 
 lca   = catlvm(L1[2] ~ X1 + X2 + X3)
 lcas  = catlvm(L1[2] ~ X1 + X2 + X3,

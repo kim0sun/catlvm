@@ -21,4 +21,3 @@ NumericVector plogdiri(
    return lgammaf(sum(a)) - lgamma(a) +
       sum( (a - 1) * elogdiri(b) );;
 }
-
