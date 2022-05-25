@@ -55,9 +55,9 @@ proc_saturated <- function(mf, ncat) {
    res
 }
 
-proc_data <- function(data, struct) {
+proc_data <- function(data, model) {
    if (is.null(data)) return(NULL)
-   items <- struct$vars$manifest
+   items <- model$vars$manifest
    f <- paste("~", paste(unlist(items), collapse = "+"))
    mf <- model.frame(formula(f), data)
    mf[] <- lapply(mf, factor)

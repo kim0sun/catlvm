@@ -83,7 +83,7 @@ NumericVector calcll(
 
 
 // [[Rcpp::export]]
-List calcPost(
+List calcModel(
       List param, IntegerVector y, int nobs, IntegerVector nvar, List ncat,
       int nlv, int nroot, int nedge, int nleaf, int nleaf_unique,
       IntegerVector root, IntegerVector tree_index,
@@ -111,7 +111,7 @@ List calcPost(
       ptr_rho[v] = rho.begin();
    }
 
-
+   NumericVector lls(nobs);
    List lst_ll(nroot);
    List lst_a(nlv), lst_l(nlv), lst_j(nedge);
    std::vector<double*> ptr_ll(nroot);
@@ -171,6 +171,12 @@ List calcPost(
             nobs, nclass[u], nclass[v]);
    }
 
+   // calculate loglik
+   for (int r = 0; r < nroot; r ++) {
+      calclli(ptr_l[root[r]], ptr_pi[r], lls.begin(),
+              nobs, nclass[root[r]]);
+   }
+
    // initiate alpha
    for (int r = 0; r < nroot; r ++) {
       dnInit(ptr_a[root[r]], ptr_l[root[r]],
@@ -187,5 +193,11 @@ List calcPost(
             ptr_joint[d], ptr_ll[tree_index[d]]);
    }
 
-   return lst_post;
+
+   List res;
+   res["ll"] = lls;
+   res["post"] = lst_post;
+   res["lambda"] = lst_l;
+
+   return res;
 }

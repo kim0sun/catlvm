@@ -1,21 +1,21 @@
-output_param <- function(param, struct, args) {
+output_param <- function(param, model, args) {
    pi <- lapply(param$pi, exp)
    tau <- lapply(param$tau, exp)
    rho <- lapply(param$rho, exp)
 
-   names(pi) <- struct$root
+   names(pi) <- model$root
 
    for (d in seq_len(args$nedge)) {
       dimnames(tau[[d]]) <- list(
-         seq(struct$nclass[args$u[d]]),
-         seq(struct$nclass[args$v[d]])
+         seq(model$nclass[args$u[d]]),
+         seq(model$nclass[args$v[d]])
       )
-      names(dimnames(tau[[d]])) <- rev(unlist(struct$edges[d,]))
+      names(dimnames(tau[[d]])) <- rev(unlist(model$edges[d,]))
    }
 
    names(rho) <- letters[seq(args$nleaf_unique)]
-   var <- split(struct$leaf, args$cstr_leaf)
-   item <- split(struct$vars$manifest, args$cstr_leaf)
+   var <- split(model$leaf, args$cstr_leaf)
+   item <- split(model$vars$manifest, args$cstr_leaf)
    for (v in seq_len(args$nleaf_unique)) {
       rho[[v]] <- matrix(rho[[v]], ncol = args$nclass_leaf[v])
       dimnames(rho[[v]]) <- list(
@@ -31,7 +31,7 @@ output_param <- function(param, struct, args) {
    return(list(pi = pi, tau = tau, rho = rho))
 }
 
-output_logit <- function(lparam, struct, args) {
+output_logit <- function(lparam, model, args) {
    pi <- lparam$pi
    tau <- lparam$tau
    rho <- lparam$rho
@@ -40,7 +40,7 @@ output_logit <- function(lparam, struct, args) {
       nclass <- args$nclass[args$root[r]]
       names(pi[[r]]) <- paste0(seq_len(nclass - 1), "/", nclass)
    }
-   names(pi) <- struct$root
+   names(pi) <- model$root
 
    for (d in seq_len(args$nedge)) {
       nk <- args$nclass[args$u[d]]
@@ -48,11 +48,11 @@ output_logit <- function(lparam, struct, args) {
       dimnames(tau[[d]]) <- list(
          paste0(seq(nk - 1), "/", nk), seq(nl)
       )
-      names(dimnames(tau[[d]])) <- rev(unlist(struct$edges[d,]))
+      names(dimnames(tau[[d]])) <- rev(unlist(model$edges[d,]))
    }
 
-   var <- split(struct$leaf, args$cstr_leaf)
-   item <- split(struct$vars$manifest, args$cstr_leaf)
+   var <- split(model$leaf, args$cstr_leaf)
+   item <- split(model$vars$manifest, args$cstr_leaf)
    for (v in seq(args$nleaf_unique)) {
       nclass <- args$nclass_leaf[v]
       rho[[v]] <- matrix(rho[[v]], ncol = nclass)
@@ -71,8 +71,8 @@ output_logit <- function(lparam, struct, args) {
    return(list(pi = pi, tau = tau, rho = rho))
 }
 
-output_posterior <- function(post, struct, data) {
-   names(post) = struct$label
+output_posterior <- function(post, model, data) {
+   names(post) = model$label
    lapply(post, function(x) {
       res <- exp(t(x))
       dimnames(res) <- list(data$dimnames[[1]], class = seq(ncol(res)))

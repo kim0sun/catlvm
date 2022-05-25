@@ -1,4 +1,5 @@
 devtools::load_all()
+library(dplyr)
 
 lca   = catlvm(L1[2] ~ X1 + X2 + X3)
 lcas  = catlvm(L1[2] ~ X1 + X2 + X3,
@@ -75,6 +76,7 @@ lcpawg = catlvm(LG[2] ~ Z1 + Z2 + Z3,
                 L3[2] ~ X31 + X32 + X33,
                 P1[2] ~ L1 + L2 + L3,
                 constraints = list(c("L1", "L2", "L3")))
+lcas; plot(lcas)
 lca; plot(lca)
 lcpa; plot(lcpa)
 jlca; plot(jlca, abbreviation = TRUE)
@@ -84,9 +86,8 @@ lta; plot(lta)
 library(dplyr)
 object <- lcpa
 sim <- object %>% simulate(1000)
+debug(estimate)
 fit <- object %>% estimate(data = sim$response, method = "em")
-fit$fit$posterior
-fit$fit$estimates
 
 library(randomLCA)
 data(symptoms)
@@ -111,10 +112,13 @@ lcpa_sym2 <- catlvm(
    constraints = list(c("LC1", "LC2", "LC3", "LC4")),
    data = dat
 )
-
+plot(lcpa_sym)
 object = lcpa_sym %>% estimate(data = dat)
 object2 = lcpa_sym2 %>% estimate()
 posterior(object, "LC1")
+posterior(object, c("LC1", "LC2"))
+
+str(a)
 a = rho(object)
 
 lcpa_sym %>% estimate(data = dat)

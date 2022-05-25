@@ -11,7 +11,7 @@ estimate.catlvm <- function(
       args <- object$args
    }
    else {
-      data <- proc_data(data, object$struct)
+      data <- proc_data(data, object$model)
       args <- update_args(object$args, data)
       object$data <- data
       object$args <- args
@@ -130,29 +130,25 @@ estimate.catlvm <- function(
    #                 control$verbose, control$per.iter)
    # }
 
-   logit_par <- logit_param(log_par, args)
-   se_logit <- se_logit_par(logit_par, data, args)
-   posterior <- calcPost(
+   etc <- calcModel(
       log_par, data$y, args$nobs, args$nvar, args$ncat,
       args$nlv, args$nroot, args$nedge, args$nleaf, args$nleaf_unique,
       args$root - 1, args$tree_index - 1, args$u - 1, args$v - 1,
       args$leaf - 1, args$cstr_leaf - 1, args$nclass, args$nclass_leaf
    )
 
+   logit_par <- logit_param(log_par, args)
+   se_logit <- se_logit_par(logit_par, data, args)
 
    object$estimates = list(
-      param = output_param(log_par, object$struct, args),
-      logit = output_logit(logit_par, object$struct, args),
+      param = output_param(log_par, object$model, args),
+      logit = output_logit(logit_par, object$model, args),
       se_par = NULL,
-      se_logit = output_logit(se_logit$se, object$struct, args)
+      se_logit = output_logit(se_logit$se, object$model, args)
    )
-   object$llik <- calcll(
-      unlist(logit_par), data$y, args$nobs, args$nvar, args$ncat,
-      args$nlv, args$nroot, args$nedge, args$nleaf, args$nleaf_unique,
-      args$root - 1, args$u - 1, args$v - 1, args$leaf - 1,
-      args$cstr_leaf - 1, args$nclass, args$nclass_leaf
-   )
-   object$posterior <- output_posterior(posterior, object$struct, data)
+   object$llik <- etc$ll
+   object$lambda <- etc$lambda[args$root]
+   object$posterior <- output_posterior(etc$post, object$model, data)
    object$convergence <- c(EM = em.convergence, nlm = nlm.convergence)
 
    class(object) <- "catlvm.fit"

@@ -38,9 +38,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// calcPost
-List calcPost(List param, IntegerVector y, int nobs, IntegerVector nvar, List ncat, int nlv, int nroot, int nedge, int nleaf, int nleaf_unique, IntegerVector root, IntegerVector tree_index, IntegerVector ulv, IntegerVector vlv, IntegerVector leaf, IntegerVector cstr_leaf, IntegerVector nclass, IntegerVector nclass_leaf);
-RcppExport SEXP _catlvm_calcPost(SEXP paramSEXP, SEXP ySEXP, SEXP nobsSEXP, SEXP nvarSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP nrootSEXP, SEXP nedgeSEXP, SEXP nleafSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP tree_indexSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP leafSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nclass_leafSEXP) {
+// calcModel
+List calcModel(List param, IntegerVector y, int nobs, IntegerVector nvar, List ncat, int nlv, int nroot, int nedge, int nleaf, int nleaf_unique, IntegerVector root, IntegerVector tree_index, IntegerVector ulv, IntegerVector vlv, IntegerVector leaf, IntegerVector cstr_leaf, IntegerVector nclass, IntegerVector nclass_leaf);
+RcppExport SEXP _catlvm_calcModel(SEXP paramSEXP, SEXP ySEXP, SEXP nobsSEXP, SEXP nvarSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP nrootSEXP, SEXP nedgeSEXP, SEXP nleafSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP tree_indexSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP leafSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nclass_leafSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -62,7 +62,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type cstr_leaf(cstr_leafSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass(nclassSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
-    rcpp_result_gen = Rcpp::wrap(calcPost(param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf));
+    rcpp_result_gen = Rcpp::wrap(calcModel(param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -354,7 +354,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_catlvm_calcll", (DL_FUNC) &_catlvm_calcll, 17},
-    {"_catlvm_calcPost", (DL_FUNC) &_catlvm_calcPost, 18},
+    {"_catlvm_calcModel", (DL_FUNC) &_catlvm_calcModel, 18},
     {"_catlvm_emFit", (DL_FUNC) &_catlvm_emFit, 23},
     {"_catlvm_floglik", (DL_FUNC) &_catlvm_floglik, 17},
     {"_catlvm_pi_gnr", (DL_FUNC) &_catlvm_pi_gnr, 1},

@@ -1,20 +1,20 @@
-args_return <- function(struct) {
-   constr <- struct$constr
-   nvar <- sapply(struct$vars$manifest, length)
+args_return <- function(model) {
+   constr <- model$constr
+   nvar <- sapply(model$vars$manifest, length)
 
    args <- list(
-      nlv = length(struct$label),
-      root = as.numeric(struct$root),
-      leaf = as.numeric(struct$leaf),
-      u = as.numeric(struct$edge$child),
-      v = as.numeric(struct$edge$parent),
-      tree_index = as.numeric(struct$tree),
+      nlv = length(model$label),
+      root = as.numeric(model$root),
+      leaf = as.numeric(model$leaf),
+      u = as.numeric(model$edge$child),
+      v = as.numeric(model$edge$parent),
+      tree_index = as.numeric(model$tree),
       cstr_leaf = constr$leaf,
-      nclass = struct$nclass,
+      nclass = model$nclass,
       nclass_leaf = constr$nclass_leaf,
-      nroot = length(struct$root),
-      nleaf = length(struct$leaf),
-      nedge = nrow(struct$edge),
+      nroot = length(model$root),
+      nleaf = length(model$leaf),
+      nedge = nrow(model$edge),
       nleaf_unique = length(constr$nclass_leaf),
       nvar = unname(nvar[!duplicated(constr$leaf)])
    )

@@ -5,8 +5,8 @@ calcll <- function(param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_u
     .Call(`_catlvm_calcll`, param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf)
 }
 
-calcPost <- function(param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf) {
-    .Call(`_catlvm_calcPost`, param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf)
+calcModel <- function(param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf) {
+    .Call(`_catlvm_calcModel`, param, y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf)
 }
 
 emFit <- function(y, nobs, nvar, ncat, nlv, nroot, nedge, nleaf, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_leaf, nclass, nclass_leaf, init, init_param, max_iter, tol, verbose, periter = 100L) {

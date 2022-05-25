@@ -3,23 +3,23 @@ print.catlvm <- function(x, ...) {
    cat("CATegorical Latent Variable Model\n")
 
    cat("\nLatent Variables (Root*) :")
-   label <- x$struct$label
+   label <- x$model$label
    label[x$args$root] <- paste0(label[x$args$root], "*")
-   mat <- rbind(label, x$struct$nclass)
+   mat <- rbind(label, x$model$nclass)
    dimnames(mat) <- list(c(" Label:", "nclass:"), rep("", ncol(mat)))
    print(mat, quote = FALSE)
 
    cat("\nMeasurement Model:")
-   vars <- x$struct$vars$manifest
+   vars <- x$model$vars$manifest
    formula <- sapply(vars, paste, collapse = ", ")
    mat = cbind(paste(names(vars), "-> {", formula, "}"),
-               letters[x$struct$constr$leaf_constr])
+               letters[x$model$constr$leaf_constr])
    dimnames(mat) = list(paste(" ", mat[,1], " "), rep("", ncol(mat)))
    print(mat[, -1, drop = FALSE], quote = FALSE)
 
-   if (length(x$struct$vars$latent) > 0) {
-      cat("\nLatent Dependent Structure:")
-      vars <- x$struct$vars$latent
+   if (length(x$model$vars$latent) > 0) {
+      cat("\nLatent Dependent modelure:")
+      vars <- x$model$vars$latent
       formula <- sapply(vars, paste, collapse = ", ")
       mat = cbind(paste(names(vars), "-> {", formula, "}"))
       dimnames(mat) = list(paste(" ", mat[,1], " "), "")
@@ -37,19 +37,19 @@ print.catlvm.fit <- function(x, digits = 5, ...) {
 
    cat("\nRoot class prevalence (Pi) :\n")
    nr <- x$args$nroot
-   nc <- x$struct$nclass[x$args$root]
+   nc <- x$model$nclass[x$args$root]
    mat <- matrix(NA, nr, max(nc))
-   dimnames(mat) <- list(root = x$struct$root, class = seq(max(nc)))
+   dimnames(mat) <- list(root = x$model$root, class = seq(max(nc)))
    for (r in seq_len(nr)) {
       mat[r, seq_len(nc[r])] <- pi[[r]]
    }
    print.table(round(mat, digits), quote = FALSE, ...)
 
    cat("\nMeasurement Model:")
-   vars <- x$struct$vars$manifest
+   vars <- x$model$vars$manifest
    formula <- sapply(vars, paste, collapse = ", ")
    mat = cbind(paste(names(vars), "-> {", formula, "}"),
-               letters[x$struct$constr$leaf_constr])
+               letters[x$model$constr$leaf_constr])
    dimnames(mat) = list(paste(" ", mat[,1], " "), rep("", ncol(mat)))
    print(mat[, -1, drop = FALSE], quote = FALSE)
 
@@ -60,15 +60,15 @@ print.catlvm.fit <- function(x, digits = 5, ...) {
       print.table(round(rho[[v]], digits), quote = FALSE, ...)
    }
 
-   lstr <- x$struct$vars$latent
+   lstr <- x$model$vars$latent
    if (length(lstr) > 0) {
       cat("\nTransition path of latent variables :\n")
 
       for (d in seq_len(length(lstr))) {
          parent <- names(lstr)[d]
-         nclass <- x$args$nclass[x$struct$label == parent]
-         eind <- which(x$struct$edges$parent == parent)
-         child <- as.character(x$struct$edges$child[eind])
+         nclass <- x$args$nclass[x$model$label == parent]
+         eind <- which(x$model$edges$parent == parent)
+         child <- as.character(x$model$edges$child[eind])
          path <- sapply(tau[eind], apply, 2, which.max)
          mat <- cbind(seq(nclass), " ->", path)
          dimnames(mat) <- list(rep("", nrow(mat)), c(parent, "", child))
@@ -80,7 +80,7 @@ print.catlvm.fit <- function(x, digits = 5, ...) {
 
 ##' @export
 logLik.catlvm <- function(object, ...) {
-   res <- if (is.null(obejct$fit)) NA
+   res <- if (is.null(obejct$estimate)) NA
    else structure(
       sum(object$loglik),
       df = object$args$npar,

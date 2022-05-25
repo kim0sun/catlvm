@@ -52,7 +52,7 @@ simulate.catlvm <- function(
 
    # data.name
    y <- data.frame(do.call(cbind, lapply(ysim$y, t)))
-   colnames(y) <- unlist(object$struct$vars$manifest)
+   colnames(y) <- unlist(object$model$vars$manifest)
 
    args <- object$args
 

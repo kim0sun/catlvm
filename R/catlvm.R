@@ -5,13 +5,13 @@ catlvm = function(
    if (!is.list(x)) formula <- list(x, ...)
    else formula <- x
 
-   struct <- proc_formula(formula, constraints)
+   model <- proc_formula(formula, constraints)
 
    res = list()
-   res$struct <- struct
-   res$args <- args_return(struct)
+   res$model <- model
+   res$args <- args_return(model)
    if (!missing(data)) {
-      data <- proc_data(data, struct)
+      data <- proc_data(data, model)
       res$data <- data
       res$args <- update_args(res$args, data)
    }
