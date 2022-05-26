@@ -9,29 +9,37 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 List emFit(
-   IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-   int nlv, int nroot, int nedge, int nleaf, int nleaf_unique,
-   IntegerVector root, IntegerVector tree_index,
-   IntegerVector ulv, IntegerVector vlv,
+   IntegerVector y, int nobs,
+   IntegerVector nvar, List ncat,
+   int nlv, int nroot, int nroot_unique,
+   int nlink, int nlink_unique, int nleaf, int nleaf_unique,
+   IntegerVector tree_index,
+   IntegerVector root, IntegerVector cstr_root,
+   IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_uv,
    IntegerVector leaf, IntegerVector cstr_leaf,
-   IntegerVector nclass, IntegerVector nclass_leaf,
+   IntegerVector nclass, IntegerVector nclass_root,
+   IntegerVector nclass_u, IntegerVector nclass_v,
+   IntegerVector nclass_leaf,
    LogicalVector init, List init_param,
    int max_iter, double tol, bool verbose, int periter = 100
 ) {
    int *py;
 
-   List lst_pi(nroot), lst_tau(nedge), lst_rho(nleaf_unique);
+   List lst_pi(nroot), lst_tau(nlink_unique), lst_rho(nleaf_unique);
+   List lst_ntau(nlink_unique);
    List lst_nrho_d(nleaf_unique), lst_nrho_n(nleaf_unique);
-   std::vector<double*> ptr_pi(nroot), ptr_tau(nedge), ptr_rho(nleaf_unique);
+   std::vector<double*> ptr_pi(nroot);
+   std::vector<double*> ptr_tau(nlink_unique), ptr_ntau(nlink_unique);
+   std::vector<double*> ptr_rho(nleaf_unique);
    std::vector<double*> ptr_nrho_d(nleaf_unique), ptr_nrho_n(nleaf_unique);
 
    List lst_ll(nroot);
-   List lst_a(nlv), lst_l(nlv), lst_j(nedge);
+   List lst_a(nlv), lst_l(nlv), lst_j(nlink);
    std::vector<double*> ptr_ll(nroot);
-   std::vector<double*> ptr_a(nlv), ptr_l(nlv), ptr_j(nedge);
+   std::vector<double*> ptr_a(nlv), ptr_l(nlv), ptr_j(nlink);
 
-   List lst_post(nlv), lst_joint(nedge);
-   std::vector<double*> ptr_post(nlv), ptr_joint(nedge);
+   List lst_post(nlv), lst_joint(nlink);
+   std::vector<double*> ptr_post(nlv), ptr_joint(nlink);
 
    if (init[0]) {
       List piList = init_param["pi"];
@@ -49,22 +57,25 @@ List emFit(
       }
    }
 
-   if (init[1]) {
-      List tauList = init_param["tau"];
-      for (int d = 0; d < nedge; d ++) {
+   for (int d = 0; d < nlink_unique; d ++) {
+      int u = ulv[d]; int v = vlv[d];
+
+      if (init[1]) {
+         List tauList = init_param["tau"];
          NumericMatrix tau_init = tauList[d];
          NumericMatrix tau = clone(tau_init);
          ptr_tau[d] = tau.begin();
          lst_tau[d] = tau;
-      }
-   } else {
-      for (int d = 0; d < nedge; d ++) {
-         int u = ulv[d]; int v = vlv[d];
+      } else {
          NumericMatrix tau = tau_gnr(nclass[u], nclass[v]);
          ptr_tau[d] = tau.begin();
          lst_tau[d] = tau;
       }
+      NumericMatrix ntau(nclass[u], nclass[v]);
+      ptr_ntau[d] = ntau.begin();
+      lst_ntau[d] = ntau;
    }
+
 
    if (init[2]) {
       List rhoList = init_param["rho"];
@@ -102,7 +113,7 @@ List emFit(
       ptr_ll[r] = ll.begin();
    }
 
-   for (int d = 0; d < nedge; d ++) {
+   for (int d = 0; d < nlink; d ++) {
       int u = ulv[d]; int v = vlv[d];
       NumericMatrix joint(nclass[u] * nclass[v], nobs);
       ptr_joint[d] = joint.begin();
@@ -149,7 +160,7 @@ List emFit(
       }
 
       // upward recursion
-      for (int d = nedge - 1; d > -1; d --) {
+      for (int d = nlink - 1; d > -1; d --) {
          int u = ulv[d];
          int v = vlv[d];
          upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[d],
@@ -164,7 +175,7 @@ List emFit(
       }
 
       // Downward recursion
-      for (int d = 0; d < nedge; d ++) {
+      for (int d = 0; d < nlink; d ++) {
          int u = ulv[d];
          int v = vlv[d];
          dnRec(ptr_a[u], ptr_a[v], ptr_l[u], ptr_l[v], ptr_j[d],
@@ -179,7 +190,7 @@ List emFit(
          updatePi(ptr_pi[r], ptr_post[root[r]], nobs, nclass[root[r]]);
 
       // tau updates
-      for (int d = 0; d < nedge; d ++) {
+      for (int d = 0; d < nlink; d ++) {
          int u = ulv[d]; int v = vlv[d];
          NumericMatrix ntau(nclass[u], nclass[v]);
          cumTau(ptr_joint[d], ntau.begin(), nobs, nclass[u], nclass[v]);
@@ -251,17 +262,17 @@ List emFit(
 double floglik(
       NumericVector param,
       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-      int nlv, int nroot, int nedge, int nleaf, int nleaf_unique,
+      int nlv, int nroot, int nlink, int nleaf, int nleaf_unique,
       IntegerVector root, IntegerVector ulv, IntegerVector vlv,
       IntegerVector leaf, IntegerVector cstr_leaf,
       IntegerVector nclass, IntegerVector nclass_leaf
 ) {
    int *py;
    List lst_pi(nroot);
-   List lst_tau(nedge);
+   List lst_tau(nlink);
    List lst_rho(nleaf_unique);
    std::vector<double*> ptr_pi(nroot);
-   std::vector<double*> ptr_tau(nedge);
+   std::vector<double*> ptr_tau(nlink);
    std::vector<double*> ptr_rho(nleaf_unique);
 
    List lst_l(nlv);
@@ -275,7 +286,7 @@ double floglik(
       param_ += nclass[root[r]] - 1;
    }
 
-   for (int d = 0; d < nedge; d ++) {
+   for (int d = 0; d < nlink; d ++) {
       int u = ulv[d]; int v = vlv[d];
       NumericMatrix tau = logistic_tau(param_, nclass[u], nclass[v]);
       ptr_tau[d] = tau.begin();
@@ -308,7 +319,7 @@ double floglik(
    }
 
    // upward recursion
-   for (int d = nedge - 1; d > -1; d --) {
+   for (int d = nlink - 1; d > -1; d --) {
       int u = ulv[d];
       int v = vlv[d];
       upRec2(ptr_l[v], ptr_l[u], ptr_tau[d],
