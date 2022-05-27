@@ -107,12 +107,13 @@ NumericVector logistic_rho(double *lrho, int nclass, IntegerVector ncat) {
 // [[Rcpp::export]]
 List logit2log(
       NumericVector param, int nobs, List ncat,
-      int nroot, int nedge, int nleaf_unique,
+      int nroot, int nlink_unique, int nleaf_unique,
       IntegerVector root, IntegerVector ulv, IntegerVector vlv,
-      IntegerVector nclass, IntegerVector nclass_leaf
+      IntegerVector nclass, IntegerVector nclass_leaf,
+      IntegerVector nclass_u, IntegerVector nclass_v
 ) {
    List lst_pi(nroot);
-   List lst_tau(nedge);
+   List lst_tau(nlink_unique);
    List lst_rho(nleaf_unique);
 
    double *param_ = param.begin();
@@ -123,11 +124,10 @@ List logit2log(
       param_ += nclass[root[r]] - 1;
    }
 
-   for (int d = 0; d < nedge; d ++) {
-      int u = ulv[d]; int v = vlv[d];
-      NumericMatrix tau = logistic_tau(param_, nclass[u], nclass[v]);
+   for (int d = 0; d < nlink_unique; d ++) {
+      NumericMatrix tau = logistic_tau(param_, nclass_u[d], nclass_v[d]);
       lst_tau[d] = tau;
-      param_ += nclass[v] * (nclass[u] - 1);
+      param_ += nclass_u[d] * (nclass_u[d] - 1);
    }
 
    for (int v = 0; v < nleaf_unique; v ++) {
@@ -148,12 +148,13 @@ List logit2log(
 // [[Rcpp::export]]
 List splitSE(
       NumericVector se, List ncat,
-      int nroot, int nedge, int nleaf_unique,
+      int nroot, int nlink_unique, int nleaf_unique,
       IntegerVector root, IntegerVector ulv, IntegerVector vlv,
-      IntegerVector nclass, IntegerVector nclass_leaf
+      IntegerVector nclass, IntegerVector nclass_u,
+      IntegerVector nclass_v, IntegerVector nclass_leaf
 ) {
    List lst_pi(nroot);
-   List lst_tau(nedge);
+   List lst_tau(nlink_unique);
    List lst_rho(nleaf_unique);
 
    double *se_ = se.begin();
@@ -167,14 +168,13 @@ List splitSE(
       lst_pi[r] = pi;
    }
 
-   for (int d = 0; d < nedge; d ++) {
-      int u = ulv[d]; int v = vlv[d];
-      NumericMatrix tau(nclass[u] - 1, nclass[v]);
-      for (int l = 0; l < nclass[v]; l ++) {
-         for (int k = 0; k < nclass[u] - 1; k ++) {
+   for (int d = 0; d < nlink_unique; d ++) {
+      NumericMatrix tau(nclass_u[d] - 1, nclass_v[d]);
+      for (int l = 0; l < nclass_v[d]; l ++) {
+         for (int k = 0; k < nclass_u[d] - 1; k ++) {
             tau(k, l) = se_[k];
          }
-         se_ += nclass[u] - 1;
+         se_ += nclass_u[d] - 1;
       }
       lst_tau[d] = tau;
    }

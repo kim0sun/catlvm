@@ -52,9 +52,9 @@ init_validate <- function(init.param, args) {
    else valid["pi"] <- all(sapply(seq_len(args$nroot), function(r)
       pi_valid(pi[[r]], args$nclass[args$root[r]])))
 
-   if (length(tau) < args$nedge) valid["tau"] <- FALSE
-   else valid["tau"] <- all(sapply(seq_len(args$nedge), function(d)
-      tau_valid(tau[[d]], args$nclass[args$u[d]], args$nclass[args$v[d]])))
+   if (length(tau) < args$nlink_unique) valid["tau"] <- FALSE
+   else valid["tau"] <- all(sapply(seq_len(args$nlink_unique), function(d)
+      tau_valid(tau[[d]], args$nclass_u[d], args$nclass_v[d])))
 
    if (length(rho) < args$nleaf_unique) valid["rho"] <- FALSE
    else valid["rho"] <- all(sapply(seq_len(args$nleaf_unique), function(v)

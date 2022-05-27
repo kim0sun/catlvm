@@ -12,17 +12,20 @@ print.catlvm <- function(x, ...) {
    cat("\nMeasurement Model:")
    vars <- x$model$vars$manifest
    formula <- sapply(vars, paste, collapse = ", ")
-   mat = cbind(paste(names(vars), "-> {", formula, "}"),
-               letters[x$model$constr$leaf_constr])
+   ind <- letters[x$model$constr$cstr_leaf]
+   mat = cbind(paste(names(vars), "-> {", formula, "}"), ind)
    dimnames(mat) = list(paste(" ", mat[,1], " "), rep("", ncol(mat)))
    print(mat[, -1, drop = FALSE], quote = FALSE)
 
    if (length(x$model$vars$latent) > 0) {
-      cat("\nLatent Dependent modelure:")
+      cat("\nLatent Dependent structure:")
+      ind <- LETTERS[x$model$constr$cstr_link]
+      inds <- split(ind, x$model$links$parent, drop = TRUE)
       vars <- x$model$vars$latent
       formula <- sapply(vars, paste, collapse = ", ")
-      mat = cbind(paste(names(vars), "-> {", formula, "}"))
-      dimnames(mat) = list(paste(" ", mat[,1], " "), "")
+      constr <- sapply(inds, paste, collapse = ", ")
+      mat = cbind(paste(names(vars), "-> {", formula, "}"), constr)
+      dimnames(mat) = list(paste(" ", mat[,1], " "), rep("", ncol(mat)))
       print(mat[, -1, drop = FALSE], quote = FALSE)
    }
 }
@@ -49,7 +52,7 @@ print.catlvm.fit <- function(x, digits = 5, ...) {
    vars <- x$model$vars$manifest
    formula <- sapply(vars, paste, collapse = ", ")
    mat = cbind(paste(names(vars), "-> {", formula, "}"),
-               letters[x$model$constr$leaf_constr])
+               letters[x$model$constr$cstr_leaf])
    dimnames(mat) = list(paste(" ", mat[,1], " "), rep("", ncol(mat)))
    print(mat[, -1, drop = FALSE], quote = FALSE)
 
@@ -67,9 +70,9 @@ print.catlvm.fit <- function(x, digits = 5, ...) {
       for (d in seq_len(length(lstr))) {
          parent <- names(lstr)[d]
          nclass <- x$args$nclass[x$model$label == parent]
-         eind <- which(x$model$edges$parent == parent)
-         child <- as.character(x$model$edges$child[eind])
-         path <- sapply(tau[eind], apply, 2, which.max)
+         lind <- which(x$model$links$parent == parent)
+         child <- as.character(x$model$links$child[lind])
+         path <- sapply(tau[x$args$cstr_link[lind]], apply, 2, which.max)
          mat <- cbind(seq(nclass), " ->", path)
          dimnames(mat) <- list(rep("", nrow(mat)), c(parent, "", child))
          print(mat, quote = FALSE, right = TRUE)

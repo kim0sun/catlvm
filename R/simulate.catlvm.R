@@ -12,15 +12,18 @@ simulate.catlvm <- function(
    ulv <- object$args$u
    vlv <- object$args$v
 
-   cstr_root <- object$args$cstr_root
+   cstr_link <- object$args$cstr_link
    cstr_leaf <- object$args$cstr_leaf
 
    nclass <- object$args$nclass
+   nclass_u <- object$args$nclass_u
+   nclass_v <- object$args$nclass_v
    nclass_leaf <- object$args$nclass_leaf
 
    nroot <- object$args$nroot
+   nlink <- object$args$nlink
+   nlink_unique <- object$args$nlink_unique
    nleaf <- object$args$nleaf
-   nedge <- object$args$nedge
    nleaf_unique <- object$args$nleaf_unique
 
    nvar <- object$args$nvar
@@ -35,10 +38,10 @@ simulate.catlvm <- function(
    for (r in seq_len(nroot)) {
       pi[[r]] <- pi_valid(pi[[r]], nclass[root[r]], TRUE)
    }
-   if (length(tau) < nedge)
-      tau <- lapply(seq_len(nedge), function(x) NULL)
-   for (d in seq_len(nedge)) {
-      tau[[d]] <- tau_valid(tau[[d]], nclass[ulv[d]], nclass[vlv[d]], TRUE)
+   if (length(tau) < nlink_unique)
+      tau <- lapply(seq_len(nlink_unique), function(x) NULL)
+   for (d in seq_len(nlink_unique)) {
+      tau[[d]] <- tau_valid(tau[[d]], nclass_u[d], nclass_v[d], TRUE)
    }
    if (length(rho) < nleaf_unique)
       rho <- lapply(seq_len(nleaf_unique), function(x) NULL)
@@ -47,8 +50,8 @@ simulate.catlvm <- function(
    }
 
    ysim <- ysim(nsim, nlv, root - 1, leaf - 1, ulv - 1, vlv - 1,
-                nclass, nroot, nleaf, nedge, ncat, cstr_leaf - 1,
-                pi, tau, rho, TRUE)
+                cstr_link - 1, cstr_leaf - 1, nclass,
+                nroot, nleaf, nlink, ncat, pi, tau, rho, TRUE)
 
    # data.name
    y <- data.frame(do.call(cbind, lapply(ysim$y, t)))

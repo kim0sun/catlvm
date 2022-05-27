@@ -8,17 +8,21 @@ using namespace Rcpp;
 NumericVector calcll(
       NumericVector param,
       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-      int nlv, int nroot, int nedge, int nleaf, int nleaf_unique,
-      IntegerVector root, IntegerVector ulv, IntegerVector vlv,
+      int nlv, int nroot, int nlink, int nlink_unique,
+      int nleaf, int nleaf_unique,
+      IntegerVector root,
+      IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_link,
       IntegerVector leaf, IntegerVector cstr_leaf,
-      IntegerVector nclass, IntegerVector nclass_leaf
+      IntegerVector nclass,
+      IntegerVector nclass_u, IntegerVector nclass_v,
+      IntegerVector nclass_leaf
 ) {
    int *py;
    List lst_pi(nroot);
-   List lst_tau(nedge);
+   List lst_tau(nlink_unique);
    List lst_rho(nleaf_unique);
    std::vector<double*> ptr_pi(nroot);
-   std::vector<double*> ptr_tau(nedge);
+   std::vector<double*> ptr_tau(nlink_unique);
    std::vector<double*> ptr_rho(nleaf_unique);
 
    List lst_l(nlv);
@@ -34,12 +38,11 @@ NumericVector calcll(
       param_ += nclass[root[r]] - 1;
    }
 
-   for (int d = 0; d < nedge; d ++) {
-      int u = ulv[d]; int v = vlv[d];
-      NumericMatrix tau = logistic_tau(param_, nclass[u], nclass[v]);
+   for (int d = 0; d < nlink; d ++) {
+      NumericMatrix tau = logistic_tau(param_, nclass_u[d], nclass_v[d]);
       ptr_tau[d] = tau.begin();
       lst_tau[d] = tau;
-      param_ += nclass[v] * (nclass[u] - 1);
+      param_ += nclass_v[d] * (nclass_u[d] - 1);
    }
 
    for (int v = 0; v < nleaf_unique; v ++) {
@@ -66,10 +69,10 @@ NumericVector calcll(
    }
 
    // upward recursion
-   for (int d = nedge - 1; d > -1; d --) {
+   for (int d = nlink - 1; d > -1; d --) {
       int u = ulv[d];
       int v = vlv[d];
-      upRec2(ptr_l[v], ptr_l[u], ptr_tau[d],
+      upRec2(ptr_l[v], ptr_l[u], ptr_tau[cstr_link[d]],
              nobs, nclass[u], nclass[v]);
    }
 
@@ -84,24 +87,31 @@ NumericVector calcll(
 
 // [[Rcpp::export]]
 List calcModel(
-      List param, IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-      int nlv, int nroot, int nedge, int nleaf, int nleaf_unique,
+      List param, IntegerVector y, int nobs,
+      IntegerVector nvar, List ncat,
+      int nlv, int nroot, int nlink, int nleaf,
+      int nlink_unique, int nleaf_unique,
       IntegerVector root, IntegerVector tree_index,
-      IntegerVector ulv, IntegerVector vlv,
-      IntegerVector leaf, IntegerVector cstr_leaf,
-      IntegerVector nclass, IntegerVector nclass_leaf
+      IntegerVector ulv, IntegerVector vlv, IntegerVector leaf,
+      IntegerVector cstr_link, IntegerVector cstr_leaf,
+      IntegerVector nclass, IntegerVector nclass_leaf,
+      IntegerVector nclass_u, IntegerVector nclass_v
 ) {
    int *py;
 
-   List lst_pi = param["pi"], lst_tau = param["tau"], lst_rho = param["rho"];
-   std::vector<double*> ptr_pi(nroot), ptr_tau(nedge), ptr_rho(nleaf_unique);
+   List lst_pi = param["pi"];
+   List lst_tau = param["tau"];
+   List lst_rho = param["rho"];
+   std::vector<double*> ptr_pi(nroot);
+   std::vector<double*> ptr_tau(nlink_unique);
+   std::vector<double*> ptr_rho(nleaf_unique);
 
    for (int r = 0; r < nroot; r ++) {
       NumericVector pi = lst_pi[r];
       ptr_pi[r] = pi.begin();
    }
 
-   for (int d = 0; d < nedge; d ++) {
+   for (int d = 0; d < nlink_unique; d ++) {
       NumericMatrix tau = lst_tau[d];
       ptr_tau[d] = tau.begin();
    }
@@ -113,12 +123,12 @@ List calcModel(
 
    NumericVector lls(nobs);
    List lst_ll(nroot);
-   List lst_a(nlv), lst_l(nlv), lst_j(nedge);
+   List lst_a(nlv), lst_l(nlv), lst_j(nlink);
    std::vector<double*> ptr_ll(nroot);
-   std::vector<double*> ptr_a(nlv), ptr_l(nlv), ptr_j(nedge);
+   std::vector<double*> ptr_a(nlv), ptr_l(nlv), ptr_j(nlink);
 
-   List lst_post(nlv), lst_joint(nedge);
-   std::vector<double*> ptr_post(nlv), ptr_joint(nedge);
+   List lst_post(nlv), lst_joint(nlink);
+   std::vector<double*> ptr_post(nlv), ptr_joint(nlink);
 
    for (int r = 0; r < nroot; r ++) {
       NumericVector ll(nobs);
@@ -126,7 +136,7 @@ List calcModel(
       ptr_ll[r] = ll.begin();
    }
 
-   for (int d = 0; d < nedge; d ++) {
+   for (int d = 0; d < nlink; d ++) {
       int u = ulv[d]; int v = vlv[d];
       NumericMatrix joint(nclass[u] * nclass[v], nobs);
       ptr_joint[d] = joint.begin();
@@ -158,16 +168,19 @@ List calcModel(
    // initiate lambda
    py = y.begin();
    for (int v = 0; v < nleaf; v ++) {
-      upInit(py, ptr_rho[cstr_leaf[v]], ptr_l[leaf[v]], nclass[leaf[v]],
-             nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
+      upInit(py, ptr_rho[cstr_leaf[v]],
+             ptr_l[leaf[v]], nclass[leaf[v]],
+             nobs, nvar[cstr_leaf[v]],
+             ncat[cstr_leaf[v]]);
       py += nobs * nvar[cstr_leaf[v]];
    }
 
    // upward recursion
-   for (int d = nedge - 1; d > -1; d --) {
+   for (int d = nlink - 1; d > -1; d --) {
       int u = ulv[d];
       int v = vlv[d];
-      upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[d],
+      upRec(ptr_l[v], ptr_j[d], ptr_l[u],
+            ptr_tau[cstr_link[d]],
             nobs, nclass[u], nclass[v]);
    }
 
@@ -185,12 +198,15 @@ List calcModel(
    }
 
    // Downward recursion
-   for (int d = 0; d < nedge; d ++) {
+   for (int d = 0; d < nlink; d ++) {
       int u = ulv[d];
       int v = vlv[d];
-      dnRec(ptr_a[u], ptr_a[v], ptr_l[u], ptr_l[v], ptr_j[d],
-            nobs, nclass[u], nclass[v], ptr_tau[d], ptr_post[u],
-            ptr_joint[d], ptr_ll[tree_index[d]]);
+      dnRec(ptr_a[u], ptr_a[v],
+            ptr_l[u], ptr_l[v], ptr_j[d],
+            nobs, nclass[u], nclass[v],
+            ptr_tau[cstr_link[d]],
+            ptr_post[u], ptr_joint[d],
+            ptr_ll[tree_index[d]]);
    }
 
 

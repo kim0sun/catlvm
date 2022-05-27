@@ -45,13 +45,14 @@ NumericVector rho_gnr(int nk, IntegerVector ncat) {
 // [[Rcpp::export]]
 List par_gnr(
       int nobs, IntegerVector nvar, List ncat,
-      int nroot, int nedge, int nleaf_unique,
+      int nroot, int nlink_unique, int nleaf_unique,
       IntegerVector root, IntegerVector ulv, IntegerVector vlv,
       IntegerVector nclass, IntegerVector nclass_leaf,
+      IntegerVector nclass_u, IntegerVector nclass_v,
       LogicalVector init, List init_param
 ) {
    List lst_pi(nroot);
-   List lst_tau(nedge);
+   List lst_tau(nlink_unique);
    List lst_rho(nleaf_unique);
 
    if (init[0]) {
@@ -70,15 +71,14 @@ List par_gnr(
 
    if (init[1]) {
       List tauList = init_param["tau"];
-      for (int d = 0; d < nedge; d ++) {
+      for (int d = 0; d < nlink_unique; d ++) {
          NumericMatrix tau_init = tauList[d];
          NumericMatrix tau = clone(tau_init);
          lst_tau[d] = tau;
       }
    } else {
-      for (int d = 0; d < nedge; d ++) {
-         int u = ulv[d]; int v = vlv[d];
-         NumericMatrix tau = tau_gnr(nclass[u], nclass[v]);
+      for (int d = 0; d < nlink_unique; d ++) {
+         NumericMatrix tau = tau_gnr(nclass_u[d], nclass_v[d]);
          lst_tau[d] = tau;
       }
    }

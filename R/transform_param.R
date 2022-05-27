@@ -8,9 +8,9 @@ logit_param <- function(param, args) {
       pi[[r]] <- logit_pi(param$pi[[r]], nclass)
    }
 
-   for (d in seq_len(args$nedge)) {
-      nk <- args$nclass[args$u[d]]
-      nl <- args$nclass[args$v[d]]
+   for (d in seq_len(args$nlink_unique)) {
+      nk <- args$nclass_u[d]
+      nl <- args$nclass_v[d]
       tau[[d]] <- logit_tau(param$tau[[d]], nk, nl)
    }
 
@@ -25,12 +25,16 @@ logit_param <- function(param, args) {
 se_logit_par <- function(logit_par, data, args) {
    nlm_fit <- nlm(
       floglik, unlist(logit_par),
-      y = data$y, nobs = args$nobs, nvar = args$nvar, ncat = args$ncat,
-      nlv = args$nlv, nroot = args$nroot, nedge = args$nedge,
+      y = data$y, nobs = args$nobs,
+      nvar = args$nvar, ncat = args$ncat,
+      nlv = args$nlv, nroot = args$nroot,
+      nlink = args$nlink, nlink_unique = args$nlink_unique,
       nleaf = args$nleaf, nleaf_unique = args$nleaf_unique,
-      root = args$root - 1, ulv = args$u - 1, vlv = args$v - 1,
+      root = args$root - 1, ulv = args$u - 1,
+      vlv = args$v - 1, cstr_link = args$cstr_link - 1,
       leaf = args$leaf - 1, cstr_leaf = args$cstr_leaf - 1,
-      nclass = args$nclass, nclass_leaf = args$nclass_leaf,
+      nclass = args$nclass, nclass_u = args$nclass_u,
+      nclass_v = args$nclass_v, nclass_leaf = args$nclass_leaf,
       iterlim = 1, hessian = TRUE
    )
 
@@ -42,9 +46,10 @@ se_logit_par <- function(logit_par, data, args) {
 
    list(vcov = vcov,
         se = splitSE(se, args$ncat, args$nroot,
-                     args$nedge, args$nleaf_unique,
+                     args$nlink_unique, args$nleaf_unique,
                      args$root - 1, args$u - 1, args$v - 1,
-                     args$nclass, args$nclass_leaf))
+                     args$nclass, args$nclass_u,
+                     args$nclass_v, args$nclass_leaf))
 }
 
 bdiag <- function(x) {

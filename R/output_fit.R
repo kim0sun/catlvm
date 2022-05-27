@@ -4,16 +4,16 @@ output_param <- function(param, model, args) {
    rho <- lapply(param$rho, exp)
 
    names(pi) <- model$root
-
-   for (d in seq_len(args$nedge)) {
+   names(tau) <- LETTERS[seq_len(args$nlink_unique)]
+   for (d in seq_len(args$nlink_unique)) {
       dimnames(tau[[d]]) <- list(
-         seq(model$nclass[args$u[d]]),
-         seq(model$nclass[args$v[d]])
+         seq(args$nclass_u[d]),
+         seq(args$nclass_v[d])
       )
-      names(dimnames(tau[[d]])) <- rev(unlist(model$edges[d,]))
+      names(dimnames(tau[[d]])) <- c("child", "parent")
    }
 
-   names(rho) <- letters[seq(args$nleaf_unique)]
+   names(rho) <- letters[seq_len(args$nleaf_unique)]
    var <- split(model$leaf, args$cstr_leaf)
    item <- split(model$vars$manifest, args$cstr_leaf)
    for (v in seq_len(args$nleaf_unique)) {
@@ -42,13 +42,13 @@ output_logit <- function(lparam, model, args) {
    }
    names(pi) <- model$root
 
-   for (d in seq_len(args$nedge)) {
-      nk <- args$nclass[args$u[d]]
-      nl <- args$nclass[args$v[d]]
+   for (d in seq_len(args$nlink_unique)) {
+      nk <- args$nclass_u[d]
+      nl <- args$nclass_v[d]
       dimnames(tau[[d]]) <- list(
          paste0(seq(nk - 1), "/", nk), seq(nl)
       )
-      names(dimnames(tau[[d]])) <- rev(unlist(model$edges[d,]))
+      names(dimnames(tau[[d]])) <- rev(unlist(model$links[d,]))
    }
 
    var <- split(model$leaf, args$cstr_leaf)

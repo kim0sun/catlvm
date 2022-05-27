@@ -74,8 +74,9 @@ IntegerMatrix y_gnr(
 List ysim(
       int nsim, int nlv, IntegerVector root, IntegerVector leaf,
       Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv,
-      IntegerVector nclass, int nroot, int nleaf, int nedge, List ncat,
-      IntegerVector cstr_leaf, List pi, List tau, List rho, bool print_class
+      Nullable<IntegerVector> cstr_link, IntegerVector cstr_leaf,
+      IntegerVector nclass, int nroot, int nleaf, int nlink, List ncat,
+      List pi, List tau, List rho, bool print_class
 ) {
    List cls(nlv);
 
@@ -85,9 +86,10 @@ List ysim(
    if (ulv.isNotNull() && vlv.isNotNull()) {
       IntegerVector u = as<IntegerVector>(ulv);
       IntegerVector v = as<IntegerVector>(vlv);
-      for (int d = 0; d < nedge; d ++) {
+      IntegerVector clink = as<IntegerVector>(cstr_link);
+      for (int d = 0; d < nlink; d ++) {
          cls[u[d]] = cls_gnr(nsim, nclass[u[d]], nclass[v[d]],
-                             cls[v[d]], tau[d]);
+                             cls[v[d]], tau[clink[d]]);
       }
    }
 

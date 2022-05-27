@@ -9,17 +9,14 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 List emFit(
-   IntegerVector y, int nobs,
-   IntegerVector nvar, List ncat,
-   int nlv, int nroot, int nroot_unique,
-   int nlink, int nlink_unique, int nleaf, int nleaf_unique,
-   IntegerVector tree_index,
-   IntegerVector root, IntegerVector cstr_root,
-   IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_uv,
-   IntegerVector leaf, IntegerVector cstr_leaf,
-   IntegerVector nclass, IntegerVector nclass_root,
+   IntegerVector y, int nobs, IntegerVector nvar, List ncat,
+   int nlv, int nroot, int nlink, int nleaf,
+   int nlink_unique, int nleaf_unique,
+   IntegerVector tree_index, IntegerVector root,
+   IntegerVector ulv, IntegerVector vlv, IntegerVector leaf,
+   IntegerVector cstr_link, IntegerVector cstr_leaf,
+   IntegerVector nclass, IntegerVector nclass_leaf,
    IntegerVector nclass_u, IntegerVector nclass_v,
-   IntegerVector nclass_leaf,
    LogicalVector init, List init_param,
    int max_iter, double tol, bool verbose, int periter = 100
 ) {
@@ -57,54 +54,51 @@ List emFit(
       }
    }
 
-   for (int d = 0; d < nlink_unique; d ++) {
-      int u = ulv[d]; int v = vlv[d];
-
-      if (init[1]) {
-         List tauList = init_param["tau"];
+   if (init[1]) {
+      List tauList = init_param["tau"];
+      for (int d = 0; d < nlink_unique; d ++) {
          NumericMatrix tau_init = tauList[d];
          NumericMatrix tau = clone(tau_init);
          ptr_tau[d] = tau.begin();
          lst_tau[d] = tau;
-      } else {
-         NumericMatrix tau = tau_gnr(nclass[u], nclass[v]);
+      }
+   } else {
+      for (int d = 0; d < nlink_unique; d ++) {
+         NumericMatrix tau = tau_gnr(nclass_u[d], nclass_v[d]);
          ptr_tau[d] = tau.begin();
          lst_tau[d] = tau;
       }
-      NumericMatrix ntau(nclass[u], nclass[v]);
+   }
+   for (int d = 0; d < nlink_unique; d ++) {
+      NumericMatrix ntau(nclass_u[d], nclass_v[d]);
       ptr_ntau[d] = ntau.begin();
       lst_ntau[d] = ntau;
    }
 
-
    if (init[2]) {
       List rhoList = init_param["rho"];
       for (int v = 0; v < nleaf_unique; v ++) {
-         IntegerVector ncatv = ncat[v];
          NumericVector rho_init = rhoList[v];
          NumericVector lrho = clone(rho_init);
-         NumericVector denom(nclass_leaf[v] * nvar[v]);
-         NumericVector numer(nclass_leaf[v] * sum(ncatv));
          ptr_rho[v] = lrho.begin();
-         ptr_nrho_d[v] = denom.begin();
-         ptr_nrho_n[v] = numer.begin();
          lst_rho[v] = lrho;
-         lst_nrho_d[v] = denom;
-         lst_nrho_n[v] = numer;
       }
    } else {
       for (int v = 0; v < nleaf_unique; v ++) {
          IntegerVector ncatv = ncat[v];
          NumericVector lrho = rho_gnr(nclass_leaf[v], ncatv);
-         NumericVector denom(nclass_leaf[v] * nvar[v]);
-         NumericVector numer(nclass_leaf[v] * sum(ncatv));
          ptr_rho[v] = lrho.begin();
-         ptr_nrho_d[v] = denom.begin();
-         ptr_nrho_n[v] = numer.begin();
          lst_rho[v] = lrho;
-         lst_nrho_d[v] = denom;
-         lst_nrho_n[v] = numer;
       }
+   }
+   for (int v = 0; v < nleaf_unique; v ++) {
+      IntegerVector ncatv = ncat[v];
+      NumericVector denom(nclass_leaf[v] * nvar[v]);
+      NumericVector numer(nclass_leaf[v] * sum(ncatv));
+      ptr_nrho_d[v] = denom.begin();
+      ptr_nrho_n[v] = numer.begin();
+      lst_nrho_d[v] = denom;
+      lst_nrho_n[v] = numer;
    }
 
    for (int r = 0; r < nroot; r ++) {
@@ -123,16 +117,16 @@ List emFit(
       lst_j[d] = jlambda;
    }
 
-   for (int v = 0; v < nlv; v ++) {
-      NumericMatrix post(nclass[v], nobs);
-      NumericMatrix alpha(nclass[v], nobs);
-      NumericMatrix lambda(nclass[v], nobs);
-      ptr_post[v] = post.begin();
-      ptr_a[v] = alpha.begin();
-      ptr_l[v] = lambda.begin();
-      lst_post[v] = post;
-      lst_a[v] = alpha;
-      lst_l[v] = lambda;
+   for (int u = 0; u < nlv; u ++) {
+      NumericMatrix post(nclass[u], nobs);
+      NumericMatrix alpha(nclass[u], nobs);
+      NumericMatrix lambda(nclass[u], nobs);
+      ptr_post[u] = post.begin();
+      ptr_a[u] = alpha.begin();
+      ptr_l[u] = lambda.begin();
+      lst_post[u] = post;
+      lst_a[u] = alpha;
+      lst_l[u] = lambda;
    }
 
    int iter = 0;
@@ -154,8 +148,10 @@ List emFit(
       // initiate lambda
       py = y.begin();
       for (int v = 0; v < nleaf; v ++) {
-         upInit(py, ptr_rho[cstr_leaf[v]], ptr_l[leaf[v]], nclass[leaf[v]],
-                nobs, nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
+         upInit(py, ptr_rho[cstr_leaf[v]],
+                ptr_l[leaf[v]], nclass[leaf[v]],
+                nobs, nvar[cstr_leaf[v]],
+                ncat[cstr_leaf[v]]);
          py += nobs * nvar[cstr_leaf[v]];
       }
 
@@ -163,7 +159,7 @@ List emFit(
       for (int d = nlink - 1; d > -1; d --) {
          int u = ulv[d];
          int v = vlv[d];
-         upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[d],
+         upRec(ptr_l[v], ptr_j[d], ptr_l[u], ptr_tau[cstr_link[d]],
                nobs, nclass[u], nclass[v]);
       }
 
@@ -179,8 +175,8 @@ List emFit(
          int u = ulv[d];
          int v = vlv[d];
          dnRec(ptr_a[u], ptr_a[v], ptr_l[u], ptr_l[v], ptr_j[d],
-               nobs, nclass[u], nclass[v], ptr_tau[d], ptr_post[u],
-               ptr_joint[d], ptr_ll[tree_index[d]]);
+               nobs, nclass[u], nclass[v], ptr_tau[cstr_link[d]],
+               ptr_post[u], ptr_joint[d], ptr_ll[tree_index[d]]);
       }
 
 
@@ -190,11 +186,16 @@ List emFit(
          updatePi(ptr_pi[r], ptr_post[root[r]], nobs, nclass[root[r]]);
 
       // tau updates
+      for (int d = 0; d < nlink_unique; d ++) {
+         NumericVector ntau = lst_ntau[d];
+         ntau.fill(0);
+      }
       for (int d = 0; d < nlink; d ++) {
          int u = ulv[d]; int v = vlv[d];
-         NumericMatrix ntau(nclass[u], nclass[v]);
-         cumTau(ptr_joint[d], ntau.begin(), nobs, nclass[u], nclass[v]);
-         updateTau(ptr_tau[d], ntau.begin(), nclass[u], nclass[v]);
+         cumTau(ptr_joint[d], ptr_ntau[cstr_link[d]], nobs, nclass[u], nclass[v]);
+      }
+      for (int d = 0; d < nlink_unique; d ++) {
+         updateTau(ptr_tau[d], ptr_ntau[d], nclass_u[d], nclass_v[d]);
       }
 
       // rho updates
@@ -262,17 +263,20 @@ List emFit(
 double floglik(
       NumericVector param,
       IntegerVector y, int nobs, IntegerVector nvar, List ncat,
-      int nlv, int nroot, int nlink, int nleaf, int nleaf_unique,
-      IntegerVector root, IntegerVector ulv, IntegerVector vlv,
+      int nlv, int nroot, int nlink, int nlink_unique,
+      int nleaf, int nleaf_unique, IntegerVector root,
+      IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_link,
       IntegerVector leaf, IntegerVector cstr_leaf,
-      IntegerVector nclass, IntegerVector nclass_leaf
+      IntegerVector nclass,
+      IntegerVector nclass_u, IntegerVector nclass_v,
+      IntegerVector nclass_leaf
 ) {
    int *py;
    List lst_pi(nroot);
-   List lst_tau(nlink);
+   List lst_tau(nlink_unique);
    List lst_rho(nleaf_unique);
    std::vector<double*> ptr_pi(nroot);
-   std::vector<double*> ptr_tau(nlink);
+   std::vector<double*> ptr_tau(nlink_unique);
    std::vector<double*> ptr_rho(nleaf_unique);
 
    List lst_l(nlv);
@@ -286,12 +290,11 @@ double floglik(
       param_ += nclass[root[r]] - 1;
    }
 
-   for (int d = 0; d < nlink; d ++) {
-      int u = ulv[d]; int v = vlv[d];
-      NumericMatrix tau = logistic_tau(param_, nclass[u], nclass[v]);
+   for (int d = 0; d < nlink_unique; d ++) {
+      NumericMatrix tau = logistic_tau(param_, nclass_u[d], nclass_v[d]);
       ptr_tau[d] = tau.begin();
       lst_tau[d] = tau;
-      param_ += nclass[v] * (nclass[u] - 1);
+      param_ += nclass_v[d] * (nclass_u[d] - 1);
    }
 
    for (int v = 0; v < nleaf_unique; v ++) {
@@ -313,8 +316,8 @@ double floglik(
    py = y.begin();
    for (int v = 0; v < nleaf; v ++) {
       upInit(py, ptr_rho[cstr_leaf[v]], ptr_l[leaf[v]],
-             nclass[leaf[v]], nobs,
-             nvar[cstr_leaf[v]], ncat[cstr_leaf[v]]);
+             nclass[leaf[v]], nobs, nvar[cstr_leaf[v]],
+             ncat[cstr_leaf[v]]);
       py += nobs * nvar[cstr_leaf[v]];
    }
 
@@ -322,7 +325,7 @@ double floglik(
    for (int d = nlink - 1; d > -1; d --) {
       int u = ulv[d];
       int v = vlv[d];
-      upRec2(ptr_l[v], ptr_l[u], ptr_tau[d],
+      upRec2(ptr_l[v], ptr_l[u], ptr_tau[cstr_link[d]],
              nobs, nclass[u], nclass[v]);
    }
 

@@ -5,14 +5,8 @@
 
 // M-step
 void updatePi(double *pi, double *post, int nobs, int nclass);
-void cumTau(
-      double *joint, const double *ntau,
-      int nobs, int nk, int nl
-);
-void updateTau(
-      double *tau, double *ntau,
-      int nk, int nl
-);
+void cumTau(double *joint, const double *ntau, int nobs, int nk, int nl);
+void updateTau(double *tau, double *ntau, int nk, int nl);
 void cumRho(
       const double *denom, const double *numer,
       int *y, int nobs, int nvar, Rcpp::IntegerVector ncat,
