@@ -112,8 +112,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // floglik
-double floglik(NumericVector param, IntegerVector y, int nobs, IntegerVector nvar, List ncat, int nlv, int nroot, int nlink, int nlink_unique, int nleaf, int nleaf_unique, IntegerVector root, IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_link, IntegerVector leaf, IntegerVector cstr_leaf, IntegerVector nclass, IntegerVector nclass_u, IntegerVector nclass_v, IntegerVector nclass_leaf);
-RcppExport SEXP _catlvm_floglik(SEXP paramSEXP, SEXP ySEXP, SEXP nobsSEXP, SEXP nvarSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP nrootSEXP, SEXP nlinkSEXP, SEXP nlink_uniqueSEXP, SEXP nleafSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP cstr_linkSEXP, SEXP leafSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP, SEXP nclass_leafSEXP) {
+double floglik(NumericVector param, IntegerVector y, int nobs, IntegerVector nvar, List ncat, int nlv, int nroot, int nlink, int nlink_unique, int nleaf, int nleaf_unique, IntegerVector root, IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_link, IntegerVector leaf, IntegerVector cstr_leaf, IntegerVector nclass, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v, LogicalVector indInf, LogicalVector indNegInf, int npar);
+RcppExport SEXP _catlvm_floglik(SEXP paramSEXP, SEXP ySEXP, SEXP nobsSEXP, SEXP nvarSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP nrootSEXP, SEXP nlinkSEXP, SEXP nlink_uniqueSEXP, SEXP nleafSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP cstr_linkSEXP, SEXP leafSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP, SEXP indInfSEXP, SEXP indNegInfSEXP, SEXP nparSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -135,10 +135,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type leaf(leafSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type cstr_leaf(cstr_leafSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass(nclassSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass_u(nclass_uSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass_v(nclass_vSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
-    rcpp_result_gen = Rcpp::wrap(floglik(param, y, nobs, nvar, ncat, nlv, nroot, nlink, nlink_unique, nleaf, nleaf_unique, root, ulv, vlv, cstr_link, leaf, cstr_leaf, nclass, nclass_u, nclass_v, nclass_leaf));
+    Rcpp::traits::input_parameter< LogicalVector >::type indInf(indInfSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type indNegInf(indNegInfSEXP);
+    Rcpp::traits::input_parameter< int >::type npar(nparSEXP);
+    rcpp_result_gen = Rcpp::wrap(floglik(param, y, nobs, nvar, ncat, nlv, nroot, nlink, nlink_unique, nleaf, nleaf_unique, root, ulv, vlv, cstr_link, leaf, cstr_leaf, nclass, nclass_leaf, nclass_u, nclass_v, indInf, indNegInf, npar));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -379,7 +382,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_catlvm_calcll", (DL_FUNC) &_catlvm_calcll, 21},
     {"_catlvm_calcModel", (DL_FUNC) &_catlvm_calcModel, 22},
     {"_catlvm_emFit", (DL_FUNC) &_catlvm_emFit, 27},
-    {"_catlvm_floglik", (DL_FUNC) &_catlvm_floglik, 21},
+    {"_catlvm_floglik", (DL_FUNC) &_catlvm_floglik, 24},
     {"_catlvm_pi_gnr", (DL_FUNC) &_catlvm_pi_gnr, 1},
     {"_catlvm_tau_gnr", (DL_FUNC) &_catlvm_tau_gnr, 2},
     {"_catlvm_rho_gnr", (DL_FUNC) &_catlvm_rho_gnr, 2},

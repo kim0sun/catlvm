@@ -7,7 +7,10 @@ posterior.catlvm.fit <- function(object, variable = NULL, ...) {
 
    if (is.null(variable)) variable <- object$model$root[1]
 
-   if (length(variable) == 1) out <- post[[variable]]
+   if (length(variable) == 1) {
+      out <- post[[variable]]
+      names(dimnames(out))[2] <- paste0(variable, ": class")
+   }
    else out <- post[variable]
 
    class(out) <- "posterior"

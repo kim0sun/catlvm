@@ -267,9 +267,9 @@ double floglik(
       int nleaf, int nleaf_unique, IntegerVector root,
       IntegerVector ulv, IntegerVector vlv, IntegerVector cstr_link,
       IntegerVector leaf, IntegerVector cstr_leaf,
-      IntegerVector nclass,
+      IntegerVector nclass, IntegerVector nclass_leaf,
       IntegerVector nclass_u, IntegerVector nclass_v,
-      IntegerVector nclass_leaf
+      LogicalVector indInf, LogicalVector indNegInf, int npar
 ) {
    int *py;
    List lst_pi(nroot);
@@ -281,7 +281,12 @@ double floglik(
 
    List lst_l(nlv);
    std::vector<double*> ptr_l(nlv);
-   double *param_ = param.begin();
+   NumericVector par(npar);
+   par[indInf] = R_PosInf;
+   par[indNegInf] = R_NegInf;
+   par[!(indInf|indNegInf)] = param;
+
+   double *param_ = par.begin();
 
    for (int r = 0; r < nroot; r ++) {
       NumericVector pi = logistic_pi(param_, nclass[root[r]]);

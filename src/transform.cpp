@@ -127,7 +127,7 @@ List logit2log(
    for (int d = 0; d < nlink_unique; d ++) {
       NumericMatrix tau = logistic_tau(param_, nclass_u[d], nclass_v[d]);
       lst_tau[d] = tau;
-      param_ += nclass_u[d] * (nclass_u[d] - 1);
+      param_ += nclass_u[d] * (nclass_v[d] - 1);
    }
 
    for (int v = 0; v < nleaf_unique; v ++) {

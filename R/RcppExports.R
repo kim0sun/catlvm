@@ -13,8 +13,8 @@ emFit <- function(y, nobs, nvar, ncat, nlv, nroot, nlink, nleaf, nlink_unique, n
     .Call(`_catlvm_emFit`, y, nobs, nvar, ncat, nlv, nroot, nlink, nleaf, nlink_unique, nleaf_unique, tree_index, root, ulv, vlv, leaf, cstr_link, cstr_leaf, nclass, nclass_leaf, nclass_u, nclass_v, init, init_param, max_iter, tol, verbose, periter)
 }
 
-floglik <- function(param, y, nobs, nvar, ncat, nlv, nroot, nlink, nlink_unique, nleaf, nleaf_unique, root, ulv, vlv, cstr_link, leaf, cstr_leaf, nclass, nclass_u, nclass_v, nclass_leaf) {
-    .Call(`_catlvm_floglik`, param, y, nobs, nvar, ncat, nlv, nroot, nlink, nlink_unique, nleaf, nleaf_unique, root, ulv, vlv, cstr_link, leaf, cstr_leaf, nclass, nclass_u, nclass_v, nclass_leaf)
+floglik <- function(param, y, nobs, nvar, ncat, nlv, nroot, nlink, nlink_unique, nleaf, nleaf_unique, root, ulv, vlv, cstr_link, leaf, cstr_leaf, nclass, nclass_leaf, nclass_u, nclass_v, indInf, indNegInf, npar) {
+    .Call(`_catlvm_floglik`, param, y, nobs, nvar, ncat, nlv, nroot, nlink, nlink_unique, nleaf, nleaf_unique, root, ulv, vlv, cstr_link, leaf, cstr_leaf, nclass, nclass_leaf, nclass_u, nclass_v, indInf, indNegInf, npar)
 }
 
 pi_gnr <- function(nk) {

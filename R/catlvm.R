@@ -1,6 +1,6 @@
 ##' @export
 catlvm = function(
-   x, ..., data, constraints = NULL
+   x, ..., data, group, constraints = NULL
 ) {
    if (!is.list(x)) formula <- list(x, ...)
    else formula <- x
@@ -15,6 +15,7 @@ catlvm = function(
       res$data <- data
       res$args <- update_args(res$args, data)
    }
+   res$estimated <- FALSE
 
    class(res) <- "catlvm"
    res
