@@ -14,8 +14,7 @@
                   L2[2] ~ Y1 + Y2 + Y3,
                   L3[2] ~ Z1 + Z2 + Z3,
                   PF[2] ~ L1 + L2 + L3,
-                  constraints = list(c("L1", "L2", "L3"),
-                                     c("PF~L1", "PF->L2")))
+                  constraints = list(c("L1", "L2", "L3")))
 
    jlcpa = catlvm(L1[2] ~ X11 + X21 + X31,
                   M1[2] ~ Y11 + Y21 + Y31,
@@ -71,6 +70,15 @@
                     c("J1 ~ L1", "J2 ~ L2", "J3 ~ L3"),
                     c("J1 ~ M1", "J2 ~ M2", "J3 ~ M3"),
                     c("J1 ~ N1", "J2 ~ N2", "J3 ~ N3")))
+   mlcpa = catlvm(L1[3] ~ X11 + X21 + X31,
+                 M1[3] ~ Y11 + Y21 + Y31,
+                 L2[3] ~ X12 + X22 + X32,
+                 M2[3] ~ Y12 + Y22 + Y32,
+                 L3[3] ~ X13 + X23 + X33,
+                 M3[3] ~ Y13 + Y23 + Y33,
+                 LP[3] ~ L1 + M1 + L2 + M2 + L3 + M3,
+                 constraints = list(
+                    c("L1", "L2", "L3"), c("M1", "M2", "M3")))
    lcawg = catlvm(LG[2] ~ Z1 + Z2 + Z3,
                   LC[2] ~ X1 + X2 + X3,
                   LG ~ LC)
@@ -90,17 +98,15 @@
 # jlcpa; plot(jlcpa, abbreviation = TRUE)
 # lta; plot(lta)
 
-load_all()
 object <- jlta
 sim <- object %>% simulate(1000)
-fit <- object %>% estimate(data = sim$response, method = "em")
-
-library(cat)
+fit_em <- object %>% estimate(data = sim$response, method = "em")
+fit_nlm <- object %>% estimate(data = sim$response, method = "nlm")
+fit_hb <- object %>% estimate(data = sim$response, method = "hybrid")
 
 library(randomLCA)
 data(symptoms)
 dat = symptoms[rep(seq(symptoms$Freq), symptoms$Freq),]
-
 
 lcpa_sym <- catlvm(
    LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
@@ -111,7 +117,7 @@ lcpa_sym <- catlvm(
    constraints = list(c("LC1", "LC2", "LC3", "LC4"))
 )
 
-lcpa_sym <- catlvm(
+lta_sym <- catlvm(
    LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
    LC2[3] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
    LC3[3] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
@@ -121,25 +127,17 @@ lcpa_sym <- catlvm(
    LC3 ~ LC4,
    constraints = list(c("LC1", "LC2", "LC3", "LC4"))
 )
+plot(lcpa_sym, abbreviation = TRUE)
+debug(estimate)
+object = lcpa_sym %>% estimate(data = dat, method = "em")
+object2 = lta_sym %>% estimate(data = dat)
 
-lcpa_sym2 <- catlvm(
-   LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
-   LC2[3] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
-   LC3[3] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
-   LC4[3] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
-   LCP[2] ~ LC1 + LC2 + LC3 + LC4,
-   constraints = list(c("LC1", "LC2", "LC3", "LC4")),
-   data = dat
-)
-
-plot(lcpa_sym)
-object = lcpa_sym %>% estimate(data = dat)
-object2 = lcpa_sym2 %>% estimate()
-posterior(object, "LC1")
+posterior(object, c("LC1"))
 posterior(object, c("LC1", "LC2"))
 
 str(a)
 a = rho(object)
+
 
 lcpa_sym %>% estimate(data = dat)
 undebug(estimate.catlvm)

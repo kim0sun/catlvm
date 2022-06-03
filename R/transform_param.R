@@ -23,8 +23,13 @@ logit_param <- function(param, args) {
 }
 
 se_logit_par <- function(logit_par, data, args) {
+   lparam <- unlist(logit_par)
+   indInf <- is.infinite(lparam) & lparam > 0
+   indNegInf <- is.infinite(lparam) & lparam < 0
+   nparam <- length(lparam)
+
    nlm_fit <- nlm(
-      floglik, unlist(logit_par),
+      floglik, lparam[!(indInf|indNegInf)],
       y = data$y, nobs = args$nobs,
       nvar = args$nvar, ncat = args$ncat,
       nlv = args$nlv, nroot = args$nroot,
@@ -33,8 +38,9 @@ se_logit_par <- function(logit_par, data, args) {
       root = args$root - 1, ulv = args$u - 1,
       vlv = args$v - 1, cstr_link = args$cstr_link - 1,
       leaf = args$leaf - 1, cstr_leaf = args$cstr_leaf - 1,
-      nclass = args$nclass, nclass_u = args$nclass_u,
-      nclass_v = args$nclass_v, nclass_leaf = args$nclass_leaf,
+      nclass = args$nclass, nclass_leaf = args$nclass_leaf,
+      nclass_u = args$nclass_u, nclass_v = args$nclass_v,
+      indInf = indInf, indNegInf = indNegInf, npar = nparam,
       iterlim = 1, hessian = TRUE
    )
 
@@ -42,7 +48,10 @@ se_logit_par <- function(logit_par, data, args) {
    vcov <- MASS::ginv(hessian)
    var <- diag(vcov)
    var[var < 0] <- 0
-   se <- sqrt(var)
+
+   se = numeric(nparam)
+   se[indInf|indNegInf] <- 0
+   se[!(indInf|indNegInf)] <- sqrt(var)
 
    list(vcov = vcov,
         se = splitSE(se, args$ncat, args$nroot,

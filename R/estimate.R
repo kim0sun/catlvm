@@ -50,7 +50,7 @@ estimate.catlvm <- function(
       posterior <- em_fit$posterior
       em.convergence <- em_fit$converged
       nlm.convergence <- NA
-      if (control$verbose) cat(".. done.")
+      if (control$verbose) cat(".. done.\n")
    } else if (method == "nlm") {
       params <- par_gnr(args$nobs, args$nvar, args$ncat,
                         args$nroot, args$nlink_unique, args$nleaf_unique,
@@ -58,11 +58,13 @@ estimate.catlvm <- function(
                         args$nclass, args$nclass_leaf,
                         args$nclass_u, args$nclass_v,
                         is.init, init.param)
-      lparam <- logit_param(params, args)
-      if (control$verbose) cat("\nnlm iteration begin.\n")
+      lparam <- unlist(logit_param(params, args))
+      nparam <- length(lparam)
+      indInf <- rep(FALSE, nparam)
+      indNegInf <- rep(FALSE, nparam)
+      if (control$verbose) cat("nlm iteration begin.\n")
       nlm_fit <- nlm(
-         floglik, unlist(lparam),
-         y = data$y, nobs = args$nobs,
+         floglik, lparam, y = data$y, nobs = args$nobs,
          nvar = args$nvar, ncat = args$ncat,
          nlv = args$nlv, nroot = args$nroot,
          nlink = args$nlink, nlink_unique = args$nlink_unique,
@@ -70,8 +72,9 @@ estimate.catlvm <- function(
          root = args$root - 1, ulv = args$u - 1,
          vlv = args$v - 1, cstr_link = args$cstr_link - 1,
          leaf = args$leaf - 1, cstr_leaf = args$cstr_leaf - 1,
-         nclass = args$nclass, nclass_u = args$nclass_u,
-         nclass_v = args$nclass_v, nclass_leaf = args$nclass_leaf,
+         nclass = args$nclass, nclass_leaf = args$nclass_leaf,
+         nclass_u = args$nclass_u, nclass_v = args$nclass_v,
+         indInf = indInf, indNegInf = indNegInf, npar = nparam,
          iterlim = control$nlm.iterlim, steptol = control$nlm.tol
       )
       log_par <-logit2log(nlm_fit$estimate, args$nobs, args$ncat,
@@ -81,7 +84,7 @@ estimate.catlvm <- function(
                           args$nclass_u, args$nclass_v)
       em.convergence <- NA
       nlm.convergence <- nlm_fit$code < 3
-      if (control$verbose) cat(".. done.")
+      if (control$verbose) cat(".. done.\n")
    } else if (method == "hybrid") {
       if (control$verbose) cat("EM iteration begin.\n")
       em_fit <- emFit(
@@ -97,13 +100,17 @@ estimate.catlvm <- function(
          control$em.iterlim, control$em.tol,
          control$verbose, control$per.iter
       )
-      lparam <- logit_param(em_fit$params, args)
+      lparam <- unlist(logit_param(em_fit$params, args))
       posterior <- em_fit$posterior
       em.convergence <- em_fit$converged
       if (control$verbose) cat(".. done. \nnlm iteration begin.\n")
 
+      indInf <- is.infinite(lparam) & lparam > 0
+      indNegInf <- is.infinite(lparam) & lparam < 0
+      nparam <- length(lparam)
+
       nlm_fit <- nlm(
-         floglik, unlist(lparam),
+         floglik, lparam[!(indInf|indNegInf)],
          y = data$y, nobs = args$nobs,
          nvar = args$nvar, ncat = args$ncat,
          nlv = args$nlv, nroot = args$nroot,
@@ -112,17 +119,23 @@ estimate.catlvm <- function(
          root = args$root - 1, ulv = args$u - 1,
          vlv = args$v - 1, cstr_link = args$cstr_link - 1,
          leaf = args$leaf - 1, cstr_leaf = args$cstr_leaf - 1,
-         nclass = args$nclass, nclass_u = args$nclass_u,
-         nclass_v = args$nclass_v, nclass_leaf = args$nclass_leaf,
+         nclass = args$nclass, nclass_leaf = args$nclass_leaf,
+         nclass_u = args$nclass_u, nclass_v = args$nclass_v,
+         indInf = indInf, indNegInf = indNegInf, npar = nparam,
          iterlim = control$nlm.iterlim, steptol = control$nlm.tol
       )
-      log_par <- logit2log(nlm_fit$estimate, args$nobs, args$ncat,
+      logit_par <- numeric(nparam)
+      logit_par[!(indInf|indNegInf)] <- nlm_fit$estimate
+      logit_par[indInf] <- Inf
+      logit_par[indNegInf] <- -Inf
+
+      log_par <- logit2log(logit_par, args$nobs, args$ncat,
                            args$nroot, args$nlink_unique, args$nleaf_unique,
                            args$root - 1, args$u - 1, args$v - 1,
                            args$nclass, args$nclass_leaf,
                            args$nclass_u, args$nclass_v)
       nlm.convergence <- nlm_fit$code < 3
-      if (control$verbose) cat(".. done.")
+      if (control$verbose) cat(".. done.\n")
    }
    # else if (method == "vem") {
    #    fit <- emFit(data$y, args$nobs, args$nvar, args$ncat,
@@ -168,8 +181,9 @@ estimate.catlvm <- function(
    object$lambda <- etc$lambda[args$root]
    object$posterior <- output_posterior(etc$post, object$model, data)
    object$convergence <- c(EM = em.convergence, nlm = nlm.convergence)
+   object$estimated <- TRUE
 
-   class(object) <- "catlvm.fit"
+   class(object) <- "catlvm"
    object
 }
 
