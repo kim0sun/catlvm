@@ -80,6 +80,7 @@ print.catlvm <- function(x, digits = 5, ...) {
    }
 }
 
+
 ##' @export
 print.catlvm.fit <- function(x, digits = 5, ...) {
    pi <- x$estimates$par$pi
