@@ -78,7 +78,9 @@
                  M3[3] ~ Y13 + Y23 + Y33,
                  LP[3] ~ L1 + M1 + L2 + M2 + L3 + M3,
                  constraints = list(
-                    c("L1", "L2", "L3"), c("M1", "M2", "M3")))
+                    c("L1", "L2", "L3"), c("M1", "M2", "M3"),
+                    c("LP->L1", "LP->L2", "LP->L3"),
+                    c("LP->M1", "LP->M2", "LP->M3")))
    lcawg = catlvm(LG[2] ~ Z1 + Z2 + Z3,
                   LC[2] ~ X1 + X2 + X3,
                   LG ~ LC)
@@ -97,7 +99,8 @@
 # jlca; plot(jlca, abbreviation = TRUE)
 # jlcpa; plot(jlcpa, abbreviation = TRUE)
 # lta; plot(lta)
-
+load_all()
+mlcpa
 object <- jlta
 sim <- object %>% simulate(1000)
 fit_em <- object %>% estimate(data = sim$response, method = "em")
