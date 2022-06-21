@@ -99,9 +99,13 @@
 # jlca; plot(jlca, abbreviation = TRUE)
 # jlcpa; plot(jlcpa, abbreviation = TRUE)
 # lta; plot(lta)
+load_all()
 object <- jlta
 sim <- object %>% simulate(1000)
-fit_em <- object %>% estimate(data = sim$response, method = "em", control = list(em.iterlim = 500))
+fit_em <- object %>% estimate(data = sim$response, method = "em", control = list(em.iterlim = 10000))
+
+fit_em$estimates$se$param$rho$c
+fit_em$estimates$param$rho$c
 fit_nlm <- object %>% estimate(data = sim$response, method = "nlm")
 fit_hb <- object %>% estimate(data = sim$response, method = "hybrid")
 
@@ -110,19 +114,19 @@ data(symptoms)
 dat = symptoms[rep(seq(symptoms$Freq), symptoms$Freq),]
 
 lcpa_sym <- catlvm(
-   LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
-   LC2[3] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
-   LC3[3] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
-   LC4[3] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
+   LC1[2] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
+   LC2[2] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
+   LC3[2] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
+   LC4[2] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
    LCP[2] ~ LC1 + LC2 + LC3 + LC4,
    constraints = list(c("LC1", "LC2", "LC3", "LC4"))
 )
 
 lta_sym <- catlvm(
-   LC1[3] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
-   LC2[3] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
-   LC3[3] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
-   LC4[3] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
+   LC1[2] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
+   LC2[2] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
+   LC3[2] ~ Nightcough.6  + Wheeze.6  + Itchyrash.6  + FlexDerma.6,
+   LC4[2] ~ Nightcough.7  + Wheeze.7  + Itchyrash.7  + FlexDerma.7,
    LC1 ~ LC2,
    LC2 ~ LC3,
    LC3 ~ LC4,

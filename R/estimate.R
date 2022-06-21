@@ -4,8 +4,8 @@ estimate <- function(object, ...) UseMethod("estimate")
 ##' @export
 estimate.catlvm <- function(
    object, data = parent.frame(), regression = NULL,
-   method = "hybrid", smoothing = TRUE, control = catlvm.control(), ...)
-{
+   method = "hybrid", smoothing = TRUE, control = catlvm.control(), ...
+) {
    if (!is.null(object$data)) {
       data <- object$data
       args <- object$args
@@ -169,15 +169,34 @@ estimate.catlvm <- function(
       args$nclass_u, args$nclass_v
    )
 
-   logit_par <- log2logit(log_par, args)
-   se_logit <- se_logit_par(logit_par, data, args)
+   logit_par <- splitlogit(
+      log2logit(log_par, nparam, args$ncat, args$nroot,
+                args$nlink_unique, args$nleaf_unique,
+                args$nclass[args$root], args$nclass_leaf,
+                args$nclass_u, args$nclass_v),
+      args$ncat, args$nroot, args$nlink_unique, args$nleaf_unique,
+      args$root, args$u, args$v, args$nclass[args$root],
+      args$nclass_u, args$nclass_v, args$nclass_leaf
+   )
+   logit_cov <- se_logit_fi(etc$score)
+   logit_se  <- splitlogit(get_se(logit_cov), args$ncat, args$nroot,
+                           args$nlink_unique, args$nleaf_unique, args$root,
+                           args$u, args$v, args$nclass[args$root],
+                           args$nclass_u, args$nclass_v, args$nclass_leaf)
+   param_cov <- se_transform(log_par, logit_cov, args)
+   param_se  <- splitparam(get_se(param_cov), args$ncat, args$nroot,
+                           args$nlink_unique, args$nleaf_unique, args$root,
+                           args$u, args$v, args$nclass[args$root],
+                           args$nclass_u, args$nclass_v, args$nclass_leaf)
 
    object$estimates = list(
       param = output_param(log_par, object$model, args),
       logit = output_logit(logit_par, object$model, args),
-      se_par = NULL,
-      se_logit = output_logit(se_logit$se, object$model, args)
+      vcov = list(param = param_cov, logit = logit_cov),
+      se = list(param = output_param(param_se, object$model, args, FALSE),
+                logit = output_logit(logit_se, object$model, args))
    )
+
    object$llik <- etc$ll
    object$lambda <- etc$lambda[args$root]
    object$posterior <- output_posterior(etc$post, object$model, data)

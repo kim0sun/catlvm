@@ -144,7 +144,7 @@ List logit2log(
    for (int r = 0; r < nroot; r ++) {
       int nk = nclass_root[r];
       lst_pi[r] = logistic_pi(param_, nk);
-      param_ += nk - 1;
+      param_ += nk;
    }
 
    for (int d = 0; d < nlink_unique; d ++) {
@@ -215,6 +215,65 @@ List splitlogit(
             }
             logit_ += ncatv[m] - 1;
             rho_ += ncatv[m] - 1;
+         }
+      }
+      lst_rho[v] = rho;
+   }
+
+   List res;
+   res["pi"] = lst_pi;
+   res["tau"] = lst_tau;
+   res["rho"] = lst_rho;
+
+   return res;
+}
+
+
+// [[Rcpp::export]]
+List splitparam(
+      NumericVector param, List ncat,
+      int nroot, int nlink_unique, int nleaf_unique,
+      IntegerVector root, IntegerVector ulv, IntegerVector vlv,
+      IntegerVector nclass_root, IntegerVector nclass_u,
+      IntegerVector nclass_v, IntegerVector nclass_leaf
+) {
+   List lst_pi(nroot);
+   List lst_tau(nlink_unique);
+   List lst_rho(nleaf_unique);
+
+   double *param_ = param.begin();
+
+   for (int r = 0; r < nroot; r ++) {
+      NumericVector pi(nclass_root[r]);
+      for (int k = 0; k < nclass_root[r]; k ++) {
+         pi[k] = param_[k];
+      }
+      param_ += nclass_root[r];
+      lst_pi[r] = pi;
+   }
+
+   for (int d = 0; d < nlink_unique; d ++) {
+      NumericMatrix tau(nclass_u[d], nclass_v[d]);
+      for (int l = 0; l < nclass_v[d]; l ++) {
+         for (int k = 0; k < nclass_u[d]; k ++) {
+            tau(k, l) = param_[k];
+         }
+         param_ += nclass_u[d] - 1;
+      }
+      lst_tau[d] = tau;
+   }
+
+   for (int v = 0; v < nleaf_unique; v ++) {
+      IntegerVector ncatv = ncat[v];
+      NumericVector rho(nclass_leaf[v] * sum(ncatv));
+      double *rho_ = rho.begin();
+      for (int k = 0; k < nclass_leaf[v]; k ++) {
+         for (int m = 0; m < ncatv.length(); m ++) {
+            for (int r = 0; r < ncatv[m]; r ++) {
+               rho_[r] = param_[r];
+            }
+            param_ += ncatv[m];
+            rho_ += ncatv[m];
          }
       }
       lst_rho[v] = rho;

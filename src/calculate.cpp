@@ -170,6 +170,7 @@ List calcModel(
       }
    }
 
+   y_ = y.begin();
    for (int v = 0; v < nleaf; v ++) {
       int nk = nclass[leaf[v]];
       IntegerVector ncatv = ncat[cstr_leaf[v]];
@@ -179,8 +180,8 @@ List calcModel(
          double *rho_ = ptr_rho[cstr_leaf[v]];
          for (int k = 0; k < nk; k ++) {
             for (int m = 0; m < nvar[cstr_leaf[v]]; m ++) {
-               // if (y_[m] < ncatv[m] - 1)
-               //    score_[y_[m] - 1] += exp(post_[k]);
+               if (y_[m] < ncatv[m])
+                  score_[y_[m] - 1] += exp(post_[k]);
                for (int r = 0; r < ncatv[m] - 1; r ++)
                   score_[r] -= exp(rho_[r] + post_[k]);
                score_ += ncatv[m] - 1;

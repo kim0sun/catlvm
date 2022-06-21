@@ -61,3 +61,7 @@ splitlogit <- function(logit, ncat, nroot, nlink_unique, nleaf_unique, root, ulv
     .Call(`_catlvm_splitlogit`, logit, ncat, nroot, nlink_unique, nleaf_unique, root, ulv, vlv, nclass_root, nclass_u, nclass_v, nclass_leaf)
 }
 
+splitparam <- function(param, ncat, nroot, nlink_unique, nleaf_unique, root, ulv, vlv, nclass_root, nclass_u, nclass_v, nclass_leaf) {
+    .Call(`_catlvm_splitparam`, param, ncat, nroot, nlink_unique, nleaf_unique, root, ulv, vlv, nclass_root, nclass_u, nclass_v, nclass_leaf)
+}
+

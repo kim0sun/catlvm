@@ -1,7 +1,13 @@
-output_param <- function(param, model, args) {
-   pi <- lapply(param$pi, exp)
-   tau <- lapply(param$tau, exp)
-   rho <- lapply(param$rho, exp)
+output_param <- function(param, model, args, log = TRUE) {
+   if (log) {
+      pi <- lapply(param$pi, exp)
+      tau <- lapply(param$tau, exp)
+      rho <- lapply(param$rho, exp)
+   } else {
+      pi <- param$pi
+      tau <- param$tau
+      rho <- param$rho
+   }
 
    names(pi) <- model$root
    names(tau) <- LETTERS[seq_len(args$nlink_unique)]
@@ -74,9 +80,8 @@ output_logit <- function(lparam, model, args) {
 output_posterior <- function(post, model, data) {
    names(post) = model$label
    lapply(post, function(x) {
-      res <- exp(t(x))
-      dimnames(res) <- list(data$dimnames[[1]], class = seq(ncol(res)))
-      res
+      dimnames(x) <- list(data$dimnames[[1]], class = seq(ncol(x)))
+      x
    })
 }
 

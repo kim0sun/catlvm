@@ -328,6 +328,28 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// splitparam
+List splitparam(NumericVector param, List ncat, int nroot, int nlink_unique, int nleaf_unique, IntegerVector root, IntegerVector ulv, IntegerVector vlv, IntegerVector nclass_root, IntegerVector nclass_u, IntegerVector nclass_v, IntegerVector nclass_leaf);
+RcppExport SEXP _catlvm_splitparam(SEXP paramSEXP, SEXP ncatSEXP, SEXP nrootSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP nclass_rootSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP, SEXP nclass_leafSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
+    Rcpp::traits::input_parameter< int >::type nroot(nrootSEXP);
+    Rcpp::traits::input_parameter< int >::type nlink_unique(nlink_uniqueSEXP);
+    Rcpp::traits::input_parameter< int >::type nleaf_unique(nleaf_uniqueSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type root(rootSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type ulv(ulvSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type vlv(vlvSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_root(nclass_rootSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_u(nclass_uSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_v(nclass_vSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
+    rcpp_result_gen = Rcpp::wrap(splitparam(param, ncat, nroot, nlink_unique, nleaf_unique, root, ulv, vlv, nclass_root, nclass_u, nclass_v, nclass_leaf));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_catlvm_calcModel", (DL_FUNC) &_catlvm_calcModel, 22},
@@ -345,6 +367,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_catlvm_log2logit", (DL_FUNC) &_catlvm_log2logit, 10},
     {"_catlvm_logit2log", (DL_FUNC) &_catlvm_logit2log, 13},
     {"_catlvm_splitlogit", (DL_FUNC) &_catlvm_splitlogit, 12},
+    {"_catlvm_splitparam", (DL_FUNC) &_catlvm_splitparam, 12},
     {NULL, NULL, 0}
 };
 
