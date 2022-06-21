@@ -103,6 +103,7 @@ load_all()
 mlcpa
 object <- jlta
 sim <- object %>% simulate(1000)
+debug(estimate.catlvm)
 fit_em <- object %>% estimate(data = sim$response, method = "em")
 fit_nlm <- object %>% estimate(data = sim$response, method = "nlm")
 fit_hb <- object %>% estimate(data = sim$response, method = "hybrid")

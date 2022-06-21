@@ -336,7 +336,7 @@ double floglik(
 
    for (int r = 0; r < nroot; r ++) {
       ll += calcll(ptr_l[root[r]], ptr_pi[r],
-                  nobs, nclass[root[r]]);
+                   nobs, nclass[root[r]]);
    }
 
    return -ll;
