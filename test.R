@@ -99,12 +99,9 @@
 # jlca; plot(jlca, abbreviation = TRUE)
 # jlcpa; plot(jlcpa, abbreviation = TRUE)
 # lta; plot(lta)
-load_all()
-mlcpa
 object <- jlta
 sim <- object %>% simulate(1000)
-debug(estimate.catlvm)
-fit_em <- object %>% estimate(data = sim$response, method = "em")
+fit_em <- object %>% estimate(data = sim$response, method = "em", control = list(em.iterlim = 500))
 fit_nlm <- object %>% estimate(data = sim$response, method = "nlm")
 fit_hb <- object %>% estimate(data = sim$response, method = "hybrid")
 

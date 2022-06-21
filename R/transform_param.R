@@ -70,32 +70,22 @@ bdiag <- function(x) {
 jac_logistic <- function(x, simplify = TRUE) {
    ex <- exp(x)
    len <- length(ex)
-
    diag(ex, len, len - 1) - ex ** 2
 }
 
-jac_logistic(tau[[1]])
 jac_logistic <- function(x) {
    jac_pi <- lapply(pi, jac_logistic)
    jac_tau <- lapply(tau, apply, 2, function(y) list(jac_logistic(y)))
-   jac_rho <- lapply(rho, apply, 1, jac_logistic, simplify = 'list')
-   apply(tau[[1]], 2, jac_logistic)
+   jac_rho <- lapply(split_rho(rho, args), jac_logistic)
 }
 
-split_rho <- function(x, k, r) {
-   split_k = lapply(rho, matrix, ncol = k)
-   lapply(seq(length(split_k)), function(x)
-      lapply(split_k[[x]], split, rep(seq(length(ncat[[x]])), ncat[[x]])))
-   sweep(split_k, )
-
-   lapply(apply(split_k[[1]], 2, list), lapply, split, )
+split_rho <- function(x, args) {
+   repeats <- rep(args$ncat, args$nclass_leaf)
+   index <- rep(seq(args$nvar %*% args$nclass), unlist(repeats))
+   split(unlist(x), index)
 }
-
-split(1:6, rep(seq(length(ncat[[x]])), ncat[[x]]))
-ncat = args$ncat
 
 se_transform <- function(vcov, args) {
-
 
    index = rep(1:3, args$npar)
    vcov_pi  <- covmat[index == 1, index == 1]

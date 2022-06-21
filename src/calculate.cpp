@@ -4,16 +4,9 @@
 #include "transform.h"
 using namespace Rcpp;
 
-List calcScore(
-   std::vector<double*> post, std::vector<double*> joint,
-   std::vector<double*> pi, std::vector<double*> tau,
-   std::vector<double*> rho
-)
-
 // [[Rcpp::export]]
 List calcModel(
-      List param, int npar,
-      IntegerVector y, int nobs,
+      List param, IntegerVector y, int nobs,
       IntegerVector nvar, List ncat,
       int nlv, int nroot, int nlink, int nleaf,
       int nlink_unique, int nleaf_unique,
@@ -90,16 +83,6 @@ List calcModel(
       lst_j[d] = jlambda;
    }
 
-   for (int d = 0; d < nlink_unique; d ++) {
-      int nk = nclass_u[d], nl = nclass_v[d];
-      NumericMatrix jcum(nobs, nk * nl);
-      ptr_jcum[d] = jcum.begin();
-      lst_jcum[d] = jcum;
-      NumericMatrix pcum(nobs, nl);
-      ptr_pcum[d] = pcum.begin();
-      lst_pcum[d] = pcum;
-   }
-
    for (int v = 0; v < nlv; v ++) {
       NumericMatrix post(nclass[v], nobs);
       NumericMatrix alpha(nclass[v], nobs);
@@ -163,8 +146,8 @@ List calcModel(
       double *pi_ = ptr_pi[r];
       for (int i = 0; i < nobs; i ++) {
          for (int k = 0; k < nk - 1; k ++)
-            score_[k] = post_[k] - pi_[k];
-         score_ += nk;
+            score_[k] = exp(post_[k]) - exp(pi_[k]);
+         score_ += nk - 1;
          post_  += nk;
       }
    }
@@ -178,7 +161,7 @@ List calcModel(
          double *tau_ = ptr_tau[cstr_link[d]];
          for (int l = 0; l < nclass[v]; l ++) {
             for (int k = 0; k < nclass[u] - 1; k ++)
-               score_[k] += joint_[k] - tau_[k] * post_[l];
+               score_[k] += exp(joint_[k]) - exp(tau_[k] + post_[l]);
             score_ += nclass[u] - 1;
             joint_ += nclass[u];
             tau_ += nclass[u];
@@ -192,14 +175,14 @@ List calcModel(
       IntegerVector ncatv = ncat[cstr_leaf[v]];
       double *score_ = ptr_srho[cstr_leaf[v]];
       double *post_ = ptr_post[v];
-      double *rho_ = ptr_rho[v];
       for (int i = 0; i < nobs; i ++) {
+         double *rho_ = ptr_rho[cstr_leaf[v]];
          for (int k = 0; k < nk; k ++) {
             for (int m = 0; m < nvar[cstr_leaf[v]]; m ++) {
-               score_[y_[m]] += post_[i];
-               for (int r = 0; r < ncatv[m] - 1; r ++) {
-                  score_[r] -= rho_[r] * post_[i];
-               }
+               // if (y_[m] < ncatv[m] - 1)
+               //    score_[y_[m] - 1] += exp(post_[k]);
+               for (int r = 0; r < ncatv[m] - 1; r ++)
+                  score_[r] -= exp(rho_[r] + post_[k]);
                score_ += ncatv[m] - 1;
                rho_ += ncatv[m];
             }

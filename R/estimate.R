@@ -30,6 +30,7 @@ estimate.catlvm <- function(
    for (i in names(is.init)[as.logical(is.init)]) {
       init.param[[i]] <- lapply(init.param[[i]], log)
    }
+   nparam <- sum(args$npar)
 
    if (method == "em") {
       if (control$verbose) cat("EM iteration begin.\n")
@@ -168,7 +169,7 @@ estimate.catlvm <- function(
       args$nclass_u, args$nclass_v
    )
 
-   logit_par <- logit_param(log_par, args)
+   logit_par <- log2logit(log_par, args)
    se_logit <- se_logit_par(logit_par, data, args)
 
    object$estimates = list(
