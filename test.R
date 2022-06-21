@@ -131,7 +131,6 @@ lta_sym <- catlvm(
    constraints = list(c("LC1", "LC2", "LC3", "LC4"))
 )
 plot(lcpa_sym, abbreviation = TRUE)
-debug(estimate)
 object = lcpa_sym %>% estimate(data = dat, method = "em")
 object2 = lta_sym %>% estimate(data = dat)
 
