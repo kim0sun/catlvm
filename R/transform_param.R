@@ -1,28 +1,16 @@
-logit_param <- function(param, args) {
-   pi <- list()
-   tau <- list()
-   rho <- list()
-
-   for (r in seq_len(args$nroot)) {
-      nclass <- args$nclass[args$root[r]]
-      pi[[r]] <- logit_pi(param$pi[[r]], nclass)
-   }
-
-   for (d in seq_len(args$nlink_unique)) {
-      nk <- args$nclass_u[d]
-      nl <- args$nclass_v[d]
-      tau[[d]] <- logit_tau(param$tau[[d]], nk, nl)
-   }
-
-   for (v in seq_len(args$nleaf_unique)) {
-      nclass <- args$nclass_leaf[v]
-      rho[[v]] <- logit_rho(param$rho[[v]], args$ncat[[v]], nclass)
-   }
-
-   return(list(pi = pi, tau = tau, rho = rho))
+se_logit_fi <- function(scores) {
+   score <- do.call(rbind, lapply(scores, do.call, what = rbind))
+   fi <- score %*% t(score)
+   vcov <- MASS::ginv(fi)
 }
 
-se_logit_par <- function(logit_par, data, args) {
+get_se <- function(vcov) {
+   var <- diag(vcov)
+   var[var < 0] = 0
+   sqrt(var)
+}
+
+se_logit_nlm <- function(logit_par, data, args) {
    lparam <- unlist(logit_par)
    indInf <- is.infinite(lparam) & lparam > 0
    indNegInf <- is.infinite(lparam) & lparam < 0
@@ -79,14 +67,36 @@ bdiag <- function(x) {
    ans
 }
 
-jacobian <- function(x) {
-   len <- length(x)
-   diag(x, len + 1, len) - x ** 2
+jac_logistic <- function(x, simplify = TRUE) {
+   ex <- exp(x)
+   len <- length(ex)
+
+   diag(ex, len, len - 1) - ex ** 2
 }
 
-split_by <- function(x, y) split(x, rep(1:length(y), y))
+jac_logistic(tau[[1]])
+jac_logistic <- function(x) {
+   jac_pi <- lapply(pi, jac_logistic)
+   jac_tau <- lapply(tau, apply, 2, function(y) list(jac_logistic(y)))
+   jac_rho <- lapply(rho, apply, 1, jac_logistic, simplify = 'list')
+   apply(tau[[1]], 2, jac_logistic)
+}
 
-se_param <- function(covmat, log_par, args) {
+split_rho <- function(x, k, r) {
+   split_k = lapply(rho, matrix, ncol = k)
+   lapply(seq(length(split_k)), function(x)
+      lapply(split_k[[x]], split, rep(seq(length(ncat[[x]])), ncat[[x]])))
+   sweep(split_k, )
+
+   lapply(apply(split_k[[1]], 2, list), lapply, split, )
+}
+
+split(1:6, rep(seq(length(ncat[[x]])), ncat[[x]]))
+ncat = args$ncat
+
+se_transform <- function(vcov, args) {
+
+
    index = rep(1:3, args$npar)
    vcov_pi  <- covmat[index == 1, index == 1]
    vcov_tau <- covmat[index == 2, index == 2]
