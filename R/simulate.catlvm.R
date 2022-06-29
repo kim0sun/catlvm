@@ -1,66 +1,52 @@
-##' Simulate catlvm object
-##'
-##'
-##' @export
+#' Simulate catlvm object
+#'
+#'
+#' @export
 simulate.catlvm <- function(
-   object, nsim = 500, params = NULL,
-   ncat = 2, ...
+   object, nsim = 500, params = NULL, ...
 ) {
-   nlv <- object$args$nlv
-   root <- object$args$root
-   leaf <- object$args$leaf
-   ulv <- object$args$u
-   vlv <- object$args$v
+   args <- object$args
+   args$ncat <- if (!is.null(args$ncat)) args$ncat
+   else lapply(args$nvar, function(x) rep(2, x))
 
-   cstr_link <- object$args$cstr_link
-   cstr_leaf <- object$args$cstr_leaf
-
-   nclass <- object$args$nclass
-   nclass_u <- object$args$nclass_u
-   nclass_v <- object$args$nclass_v
-   nclass_leaf <- object$args$nclass_leaf
-
-   nroot <- object$args$nroot
-   nlink <- object$args$nlink
-   nlink_unique <- object$args$nlink_unique
-   nleaf <- object$args$nleaf
-   nleaf_unique <- object$args$nleaf_unique
-
-   nvar <- object$args$nvar
-   ncat <- if (!is.null(object$args$ncat)) obejct$args$ncat
-   else lapply(nvar, function(x) rep(ncat, x))
-
-   pi <- params$pi
-   tau <- params$tau
-   rho <- params$rho
-   if (length(pi) < nroot)
-      pi <- lapply(seq_len(nroot), function(x) NULL)
-   for (r in seq_len(nroot)) {
-      pi[[r]] <- pi_valid(pi[[r]], nclass[root[r]], TRUE)
-   }
-   if (length(tau) < nlink_unique)
-      tau <- lapply(seq_len(nlink_unique), function(x) NULL)
-   for (d in seq_len(nlink_unique)) {
-      tau[[d]] <- tau_valid(tau[[d]], nclass_u[d], nclass_v[d], TRUE)
-   }
-   if (length(rho) < nleaf_unique)
-      rho <- lapply(seq_len(nleaf_unique), function(x) NULL)
-   for (v in seq_len(nleaf_unique)) {
-      rho[[v]] <- rho_valid(rho[[v]], nclass_leaf[v], ncat[[v]], TRUE)
+   if (object$estimated) {
+      params <- object$args$log_par
+      pi <- params$pi
+      tau <- params$tau
+      rho <- params$rho
+   } else {
+      pi <- params$pi
+      tau <- params$tau
+      rho <- params$rho
+      if (length(pi) < args$nroot)
+         pi <- lapply(seq_len(args$nroot), function(x) NULL)
+      for (r in seq_len(args$nroot)) {
+         pi[[r]] <- pi_valid(pi[[r]], args$nclass[args$root[r]], TRUE)
+      }
+      if (length(tau) < args$nlink_unique)
+         tau <- lapply(seq_len(args$nlink_unique), function(x) NULL)
+      for (d in seq_len(args$nlink_unique)) {
+         tau[[d]] <- tau_valid(tau[[d]], args$nclass_u[d], args$nclass_v[d], TRUE)
+      }
+      if (length(rho) < args$nleaf_unique)
+         rho <- lapply(seq_len(args$nleaf_unique), function(x) NULL)
+      for (v in seq_len(args$nleaf_unique)) {
+         rho[[v]] <- rho_valid(rho[[v]], args$nclass_leaf[v], args$ncat[[v]], TRUE)
+      }
    }
 
-   ysim <- ysim(nsim, nlv, root - 1, leaf - 1, ulv - 1, vlv - 1,
-                cstr_link - 1, cstr_leaf - 1, nclass,
-                nroot, nleaf, nlink, ncat, pi, tau, rho, TRUE)
+   ysim <- ysim(
+      nsim, args$ncat, args$nlv, args$root - 1, args$leaf - 1,
+      args$u - 1, args$v - 1, args$cstr_link - 1, args$cstr_leaf - 1,
+      args$nroot, args$nleaf, args$nlink, args$nclass,
+      pi, tau, rho, TRUE
+   )
 
    # data.name
    y <- data.frame(do.call(cbind, lapply(ysim$y, t)))
    colnames(y) <- unlist(object$model$vars$manifest)
 
-   args <- object$args
-
    list(response = y, class = ysim$class, args = args,
-        params = list(pi = lapply(pi, exp),
-                      tau = lapply(tau, exp),
-                      rho = lapply(rho, exp)))
+        params = output_param(list(pi = pi, tau = tau, rho = rho),
+                              object$model, args))
 }

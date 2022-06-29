@@ -11,6 +11,38 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// calcPost
+List calcPost(List param, IntegerVector y, int nobs, IntegerVector nvar, List ncat, int nlv, int nroot, int nlink, int nleaf, int nlink_unique, int nleaf_unique, IntegerVector root, IntegerVector tree_index, IntegerVector ulv, IntegerVector vlv, IntegerVector leaf, IntegerVector cstr_link, IntegerVector cstr_leaf, IntegerVector nclass, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v);
+RcppExport SEXP _catlvm_calcPost(SEXP paramSEXP, SEXP ySEXP, SEXP nobsSEXP, SEXP nvarSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP nrootSEXP, SEXP nlinkSEXP, SEXP nleafSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP tree_indexSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP leafSEXP, SEXP cstr_linkSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< int >::type nobs(nobsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nvar(nvarSEXP);
+    Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
+    Rcpp::traits::input_parameter< int >::type nlv(nlvSEXP);
+    Rcpp::traits::input_parameter< int >::type nroot(nrootSEXP);
+    Rcpp::traits::input_parameter< int >::type nlink(nlinkSEXP);
+    Rcpp::traits::input_parameter< int >::type nleaf(nleafSEXP);
+    Rcpp::traits::input_parameter< int >::type nlink_unique(nlink_uniqueSEXP);
+    Rcpp::traits::input_parameter< int >::type nleaf_unique(nleaf_uniqueSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type root(rootSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type tree_index(tree_indexSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type ulv(ulvSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type vlv(vlvSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type leaf(leafSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type cstr_link(cstr_linkSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type cstr_leaf(cstr_leafSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass(nclassSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_u(nclass_uSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_v(nclass_vSEXP);
+    rcpp_result_gen = Rcpp::wrap(calcPost(param, y, nobs, nvar, ncat, nlv, nroot, nlink, nleaf, nlink_unique, nleaf_unique, root, tree_index, ulv, vlv, leaf, cstr_link, cstr_leaf, nclass, nclass_leaf, nclass_u, nclass_v));
+    return rcpp_result_gen;
+END_RCPP
+}
 // calcModel
 List calcModel(List param, IntegerVector y, int nobs, IntegerVector nvar, List ncat, int nlv, int nroot, int nlink, int nleaf, int nlink_unique, int nleaf_unique, IntegerVector root, IntegerVector tree_index, IntegerVector ulv, IntegerVector vlv, IntegerVector leaf, IntegerVector cstr_link, IntegerVector cstr_leaf, IntegerVector nclass, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v);
 RcppExport SEXP _catlvm_calcModel(SEXP paramSEXP, SEXP ySEXP, SEXP nobsSEXP, SEXP nvarSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP nrootSEXP, SEXP nlinkSEXP, SEXP nleafSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP tree_indexSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP leafSEXP, SEXP cstr_linkSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP) {
@@ -237,12 +269,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // ysim
-List ysim(int nsim, int nlv, IntegerVector root, IntegerVector leaf, Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv, Nullable<IntegerVector> cstr_link, IntegerVector cstr_leaf, IntegerVector nclass, int nroot, int nleaf, int nlink, List ncat, List pi, List tau, List rho, bool print_class);
-RcppExport SEXP _catlvm_ysim(SEXP nsimSEXP, SEXP nlvSEXP, SEXP rootSEXP, SEXP leafSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP cstr_linkSEXP, SEXP cstr_leafSEXP, SEXP nclassSEXP, SEXP nrootSEXP, SEXP nleafSEXP, SEXP nlinkSEXP, SEXP ncatSEXP, SEXP piSEXP, SEXP tauSEXP, SEXP rhoSEXP, SEXP print_classSEXP) {
+List ysim(int nsim, List ncat, int nlv, IntegerVector root, IntegerVector leaf, Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv, Nullable<IntegerVector> cstr_link, IntegerVector cstr_leaf, int nroot, int nleaf, int nlink, IntegerVector nclass, List pi, List tau, List rho, bool print_class);
+RcppExport SEXP _catlvm_ysim(SEXP nsimSEXP, SEXP ncatSEXP, SEXP nlvSEXP, SEXP rootSEXP, SEXP leafSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP cstr_linkSEXP, SEXP cstr_leafSEXP, SEXP nrootSEXP, SEXP nleafSEXP, SEXP nlinkSEXP, SEXP nclassSEXP, SEXP piSEXP, SEXP tauSEXP, SEXP rhoSEXP, SEXP print_classSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type nsim(nsimSEXP);
+    Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
     Rcpp::traits::input_parameter< int >::type nlv(nlvSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type root(rootSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type leaf(leafSEXP);
@@ -250,47 +283,25 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type vlv(vlvSEXP);
     Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type cstr_link(cstr_linkSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type cstr_leaf(cstr_leafSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type nclass(nclassSEXP);
     Rcpp::traits::input_parameter< int >::type nroot(nrootSEXP);
     Rcpp::traits::input_parameter< int >::type nleaf(nleafSEXP);
     Rcpp::traits::input_parameter< int >::type nlink(nlinkSEXP);
-    Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass(nclassSEXP);
     Rcpp::traits::input_parameter< List >::type pi(piSEXP);
     Rcpp::traits::input_parameter< List >::type tau(tauSEXP);
     Rcpp::traits::input_parameter< List >::type rho(rhoSEXP);
     Rcpp::traits::input_parameter< bool >::type print_class(print_classSEXP);
-    rcpp_result_gen = Rcpp::wrap(ysim(nsim, nlv, root, leaf, ulv, vlv, cstr_link, cstr_leaf, nclass, nroot, nleaf, nlink, ncat, pi, tau, rho, print_class));
-    return rcpp_result_gen;
-END_RCPP
-}
-// log2logit
-NumericVector log2logit(List param, int nparam, List ncat, int nroot, int nlink_unique, int nleaf_unique, IntegerVector nclass_root, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v);
-RcppExport SEXP _catlvm_log2logit(SEXP paramSEXP, SEXP nparamSEXP, SEXP ncatSEXP, SEXP nrootSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP nclass_rootSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< List >::type param(paramSEXP);
-    Rcpp::traits::input_parameter< int >::type nparam(nparamSEXP);
-    Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
-    Rcpp::traits::input_parameter< int >::type nroot(nrootSEXP);
-    Rcpp::traits::input_parameter< int >::type nlink_unique(nlink_uniqueSEXP);
-    Rcpp::traits::input_parameter< int >::type nleaf_unique(nleaf_uniqueSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type nclass_root(nclass_rootSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type nclass_u(nclass_uSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type nclass_v(nclass_vSEXP);
-    rcpp_result_gen = Rcpp::wrap(log2logit(param, nparam, ncat, nroot, nlink_unique, nleaf_unique, nclass_root, nclass_leaf, nclass_u, nclass_v));
+    rcpp_result_gen = Rcpp::wrap(ysim(nsim, ncat, nlv, root, leaf, ulv, vlv, cstr_link, cstr_leaf, nroot, nleaf, nlink, nclass, pi, tau, rho, print_class));
     return rcpp_result_gen;
 END_RCPP
 }
 // logit2log
-List logit2log(NumericVector param, int nobs, List ncat, int nroot, int nlink_unique, int nleaf_unique, IntegerVector root, IntegerVector ulv, IntegerVector vlv, IntegerVector nclass_root, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v);
-RcppExport SEXP _catlvm_logit2log(SEXP paramSEXP, SEXP nobsSEXP, SEXP ncatSEXP, SEXP nrootSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP nclass_rootSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP) {
+List logit2log(NumericVector logit, List ncat, int nroot, int nlink_unique, int nleaf_unique, IntegerVector root, IntegerVector ulv, IntegerVector vlv, IntegerVector nclass_root, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v);
+RcppExport SEXP _catlvm_logit2log(SEXP logitSEXP, SEXP ncatSEXP, SEXP nrootSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP rootSEXP, SEXP ulvSEXP, SEXP vlvSEXP, SEXP nclass_rootSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type param(paramSEXP);
-    Rcpp::traits::input_parameter< int >::type nobs(nobsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type logit(logitSEXP);
     Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
     Rcpp::traits::input_parameter< int >::type nroot(nrootSEXP);
     Rcpp::traits::input_parameter< int >::type nlink_unique(nlink_uniqueSEXP);
@@ -302,7 +313,27 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass_u(nclass_uSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type nclass_v(nclass_vSEXP);
-    rcpp_result_gen = Rcpp::wrap(logit2log(param, nobs, ncat, nroot, nlink_unique, nleaf_unique, root, ulv, vlv, nclass_root, nclass_leaf, nclass_u, nclass_v));
+    rcpp_result_gen = Rcpp::wrap(logit2log(logit, ncat, nroot, nlink_unique, nleaf_unique, root, ulv, vlv, nclass_root, nclass_leaf, nclass_u, nclass_v));
+    return rcpp_result_gen;
+END_RCPP
+}
+// log2logit
+NumericVector log2logit(List param, int npar, List ncat, int nroot, int nlink_unique, int nleaf_unique, IntegerVector nclass_root, IntegerVector nclass_leaf, IntegerVector nclass_u, IntegerVector nclass_v);
+RcppExport SEXP _catlvm_log2logit(SEXP paramSEXP, SEXP nparSEXP, SEXP ncatSEXP, SEXP nrootSEXP, SEXP nlink_uniqueSEXP, SEXP nleaf_uniqueSEXP, SEXP nclass_rootSEXP, SEXP nclass_leafSEXP, SEXP nclass_uSEXP, SEXP nclass_vSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type param(paramSEXP);
+    Rcpp::traits::input_parameter< int >::type npar(nparSEXP);
+    Rcpp::traits::input_parameter< List >::type ncat(ncatSEXP);
+    Rcpp::traits::input_parameter< int >::type nroot(nrootSEXP);
+    Rcpp::traits::input_parameter< int >::type nlink_unique(nlink_uniqueSEXP);
+    Rcpp::traits::input_parameter< int >::type nleaf_unique(nleaf_uniqueSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_root(nclass_rootSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_leaf(nclass_leafSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_u(nclass_uSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nclass_v(nclass_vSEXP);
+    rcpp_result_gen = Rcpp::wrap(log2logit(param, npar, ncat, nroot, nlink_unique, nleaf_unique, nclass_root, nclass_leaf, nclass_u, nclass_v));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -352,6 +383,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_catlvm_calcPost", (DL_FUNC) &_catlvm_calcPost, 22},
     {"_catlvm_calcModel", (DL_FUNC) &_catlvm_calcModel, 22},
     {"_catlvm_emFit", (DL_FUNC) &_catlvm_emFit, 27},
     {"_catlvm_floglik", (DL_FUNC) &_catlvm_floglik, 24},
@@ -364,8 +396,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_catlvm_cls_gnr", (DL_FUNC) &_catlvm_cls_gnr, 5},
     {"_catlvm_y_gnr", (DL_FUNC) &_catlvm_y_gnr, 5},
     {"_catlvm_ysim", (DL_FUNC) &_catlvm_ysim, 17},
+    {"_catlvm_logit2log", (DL_FUNC) &_catlvm_logit2log, 12},
     {"_catlvm_log2logit", (DL_FUNC) &_catlvm_log2logit, 10},
-    {"_catlvm_logit2log", (DL_FUNC) &_catlvm_logit2log, 13},
     {"_catlvm_splitlogit", (DL_FUNC) &_catlvm_splitlogit, 12},
     {"_catlvm_splitparam", (DL_FUNC) &_catlvm_splitparam, 12},
     {NULL, NULL, 0}

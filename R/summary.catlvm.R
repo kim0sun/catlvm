@@ -1,4 +1,4 @@
-##' @export
+#' @export
 summary.catlvm = function(object, type = c("data", "model", "posterior", "parameter"), ...) {
    cat("Summary of CATegorical Latent Variable Model\n")
 

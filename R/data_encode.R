@@ -55,7 +55,7 @@ proc_saturated <- function(mf, ncat) {
    res
 }
 
-proc_data <- function(data, model) {
+proc_data <- function(data, model, saturate = TRUE) {
    if (is.null(data)) return(NULL)
    items <- model$vars$manifest
    f <- paste("~", paste(unlist(items), collapse = "+"))
@@ -71,6 +71,10 @@ proc_data <- function(data, model) {
       stop("Following manifest variables not found:\n ",
            paste(unlist(items)[!unlist(items) %in% dims[[2]]],
                  collapse = " "))
+
+   if (!saturate) return(list(y = stretch_data(items, mf),
+                               nobs = nrow(mf),
+                               dimnames = dims))
 
    saturated <- proc_saturated(mf, ncat)
    saturated$y <- stretch_data(items, saturated$y)

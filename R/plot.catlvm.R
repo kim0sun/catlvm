@@ -1,4 +1,4 @@
-##' @export
+#' @export
 plot.catlvm <- function(x, abbreviation = FALSE, dir = "TD",
                         font = "Helvetica", ...) {
    if (abbreviation) {

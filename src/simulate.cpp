@@ -5,8 +5,8 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 IntegerVector root_gnr(
-      int nobs, int nk,
-      Nullable<NumericVector> prob = R_NilValue
+   int nobs, int nk,
+   Nullable<NumericVector> prob = R_NilValue
 ) {
    NumericVector pi;
    if (prob.isNull()) {
@@ -25,8 +25,8 @@ IntegerVector root_gnr(
 
 // [[Rcpp::export]]
 IntegerVector cls_gnr(
-      int nobs, int nk, int nl, IntegerVector v,
-      Nullable<NumericMatrix> prob = R_NilValue
+   int nobs, int nk, int nl, IntegerVector v,
+   Nullable<NumericMatrix> prob = R_NilValue
 ) {
    NumericMatrix tau;
    if (prob.isNull()) {
@@ -46,9 +46,9 @@ IntegerVector cls_gnr(
 
 // [[Rcpp::export]]
 IntegerMatrix y_gnr(
-      int nobs, int nk, IntegerVector ncat,
-      IntegerVector cls,
-      Nullable<NumericVector> prob = R_NilValue
+   int nobs, int nk, IntegerVector ncat,
+   IntegerVector cls,
+   Nullable<NumericVector> prob = R_NilValue
 ) {
    NumericVector rho;
    if (prob.isNull()) {
@@ -72,11 +72,11 @@ IntegerMatrix y_gnr(
 
 // [[Rcpp::export]]
 List ysim(
-      int nsim, int nlv, IntegerVector root, IntegerVector leaf,
-      Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv,
-      Nullable<IntegerVector> cstr_link, IntegerVector cstr_leaf,
-      IntegerVector nclass, int nroot, int nleaf, int nlink, List ncat,
-      List pi, List tau, List rho, bool print_class
+   int nsim, List ncat, int nlv, IntegerVector root, IntegerVector leaf,
+   Nullable<IntegerVector> ulv, Nullable<IntegerVector> vlv,
+   Nullable<IntegerVector> cstr_link, IntegerVector cstr_leaf,
+   int nroot, int nleaf, int nlink, IntegerVector nclass,
+   List pi, List tau, List rho, bool print_class
 ) {
    List cls(nlv);
 

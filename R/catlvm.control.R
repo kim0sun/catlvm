@@ -1,4 +1,4 @@
-##' @export
+#' @export
 catlvm.control <- function(
    em.iterlim = 1000, em.tol = 1e-5, nlm.iterlim = 500, nlm.tol = 1e-6,
    vi.iterlim = 1000, vi.param = c(TRUE, TRUE, TRUE),

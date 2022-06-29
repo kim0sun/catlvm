@@ -46,8 +46,9 @@ output_logit <- function(lparam, model, args) {
       nclass <- args$nclass[args$root[r]]
       names(pi[[r]]) <- paste0(seq_len(nclass - 1), "/", nclass)
    }
-   names(pi) <- model$root
 
+   names(pi) <- model$root
+   names(tau) <- LETTERS[seq_len(args$nlink_unique)]
    for (d in seq_len(args$nlink_unique)) {
       nk <- args$nclass_u[d]
       nl <- args$nclass_v[d]
@@ -81,7 +82,7 @@ output_posterior <- function(post, model, data) {
    names(post) = model$label
    lapply(post, function(x) {
       dimnames(x) <- list(data$dimnames[[1]], class = seq(ncol(x)))
-      x
+      exp(x)
    })
 }
 

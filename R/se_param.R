@@ -63,11 +63,11 @@ jac_logistic <- function(x, simplify = TRUE) {
 }
 
 se_transform <- function(log_par, logit_cov, args) {
-   jacobians <- list(
-      pi = bdiag(lapply(log_par$pi, jac_logistic)),
-      tau = bdiag(lapply(split_tau(log_par$tau, args), jac_logistic)),
-      rho = bdiag(lapply(split_rho(log_par$rho, args), jac_logistic))
-   )
+   jacobians <- list()
+   jacobians$pi <- bdiag(lapply(log_par$pi, jac_logistic))
+   if (args$nlink > 0)
+      jacobians$tau <- bdiag(lapply(split_tau(log_par$tau, args), jac_logistic))
+   jacobians$rho <- bdiag(lapply(split_rho(log_par$rho, args), jac_logistic))
 
    jac <- bdiag(jacobians)
    rownames(jac) <- names(unlist(lapply(sapply(jacobians, nrow), seq)))

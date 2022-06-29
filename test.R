@@ -99,20 +99,21 @@
 # jlca; plot(jlca, abbreviation = TRUE)
 # jlcpa; plot(jlcpa, abbreviation = TRUE)
 # lta; plot(lta)
-load_all()
+devtools::load_all()
 object <- jlta
 sim <- object %>% simulate(1000)
-fit_em <- object %>% estimate(data = sim$response, method = "em", control = list(em.iterlim = 10000))
+object <- object %>% estimate(data = sim$response, method = "em", control = list(em.iterlim = 1000))
 
-fit_em$estimates$se$param$rho$c
-fit_em$estimates$param$rho$c
+
+newdata <- sim$response[sample(1:1000, 300),]
 fit_nlm <- object %>% estimate(data = sim$response, method = "nlm")
 fit_hb <- object %>% estimate(data = sim$response, method = "hybrid")
 
 library(randomLCA)
+library(tidyverse)
 data(symptoms)
 dat = symptoms[rep(seq(symptoms$Freq), symptoms$Freq),]
-
+devtools::load_all()
 lcpa_sym <- catlvm(
    LC1[2] ~ Nightcough.13 + Wheeze.13 + Itchyrash.13 + FlexDerma.13,
    LC2[2] ~ Nightcough.45 + Wheeze.45 + Itchyrash.45 + FlexDerma.45,
@@ -132,19 +133,4 @@ lta_sym <- catlvm(
    LC3 ~ LC4,
    constraints = list(c("LC1", "LC2", "LC3", "LC4"))
 )
-plot(lcpa_sym, abbreviation = TRUE)
 object = lcpa_sym %>% estimate(data = dat, method = "em")
-object2 = lta_sym %>% estimate(data = dat)
-
-posterior(object, c("LC1"))
-posterior(object, c("LC1", "LC2"))
-
-str(a)
-a = rho(object)
-
-
-lcpa_sym %>% estimate(data = dat)
-undebug(estimate.catlvm)
-
-library(randomLCA)
-data(symptoms)

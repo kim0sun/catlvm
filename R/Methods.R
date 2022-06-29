@@ -1,30 +1,12 @@
-##' @export
+#' @export
 print.catlvm <- function(x, digits = 5, ...) {
    cat("CATegorical Latent Variable Model\n")
-   # if (x$estimated) {
-   #    pi <- x$estimates$par$pi
-   #    tau <- x$estimates$par$tau
-   #    rho <- x$estimates$par$rho
-   # }
-
    cat("\nLatent variables (Root*) :")
    label <- x$model$label
    label[x$args$root] <- paste0(label[x$args$root], "*")
    mat <- rbind(label, x$model$nclass)
    dimnames(mat) <- list(c(" Label:", "nclass:"), rep("", ncol(mat)))
    print(mat, quote = FALSE)
-
-   # if (x$estimated) {
-   #    cat("\nRoot class prevalence (Pi) :\n")
-   #    nr <- x$args$nroot
-   #    nc <- x$model$nclass[x$args$root]
-   #    mat <- matrix(NA, nr, max(nc))
-   #    dimnames(mat) <- list(root = x$model$root, class = seq(max(nc)))
-   #    for (r in seq_len(nr)) {
-   #       mat[r, seq_len(nc[r])] <- pi[[r]]
-   #    }
-   #    print.table(round(mat, digits), quote = FALSE, ...)
-   # }
 
    cat("\nMeasurement model:\n")
    vars <- x$model$vars$manifest
@@ -34,15 +16,6 @@ print.catlvm <- function(x, digits = 5, ...) {
    mat <- rbind(cbind(formula, " ", constr), "")
    dimnames(mat) <- list(rep("", nrow(mat)), mat[1,])
    print(mat[-1, , drop = FALSE], quote = FALSE)
-
-   # if (x$estimated) {
-   #    nlf <- x$args$nleaf_unique
-   #    for (v in seq_len(nlf)) {
-   #       cat(names(rho)[v])
-   #       print.table(round(rho[[v]], digits), quote = FALSE, ...)
-   #       cat("\n")
-   #    }
-   # }
 
    if (x$args$nlink > 0) {
       cat("Latent dependent structure:\n")
@@ -63,17 +36,10 @@ print.catlvm <- function(x, digits = 5, ...) {
       cat("\nDependency constraints:\n")
       dimnames(mat) = list(rep("", nrow(mat)), names(maps))
       print(mat, quote = FALSE)
-      # if (x$estimated) {
-      #    cat("\nMost probable path:\n")
-      #    path <- lapply(tau, apply, 2, which.max)
-      #    mat <- sapply(path, function(x) paste(names(x), "->", x, ""))
-      #    dimnames(mat) = list(rep("", nrow(mat)), names(maps))
-      #    print(mat, quote = FALSE)
-      # }
    }
 }
 
-##' @export
+#' @export
 logLik.catlvm <- function(object, ...) {
    res <- if (is.null(obejct$estimate)) NA
    else structure(
@@ -85,42 +51,42 @@ logLik.catlvm <- function(object, ...) {
    res
 }
 
-# ##' @export
+# #' @export
 # coef.catlvm = function(object, ...) {
 #
 # }
-# ##' @export
+# #' @export
 # vcov.catlvm = function(object, ...) {
 #
 # }
 #
-# ##' @export
+# #' @export
 # score.catlvm = function(x, ...) {
 #
 # }
-# ##' @export
+# #' @export
 # reorder.catlvm = function(x, ...) {
 #
 # }
 #
-# ##' @export
+# #' @export
 # anova.catlvm = function(x, ...) {
 #
 # }
 #
-# ##' @export
+# #' @export
 # # predict
 #
-# ##' @export
+# #' @export
 # # posterior
 #
-# ##' @export
+# #' @export
 # # model.matrix
 #
-# ##' @export
+# #' @export
 # # model.frame
 #
-# ##' @export
+# #' @export
 # # confint
 #
 #

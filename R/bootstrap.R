@@ -1,4 +1,5 @@
-bootstrap.dcatlvm <- function(
+#' @export
+bootstrap.catlvm <- function(
    param, method, args, B = 100,
    max.iter = 500, verbose = FALSE
 ) {
@@ -17,6 +18,5 @@ bootstrap.dcatlvm <- function(
          nclass = args$nclass, nclass_leaf = args$nclass_leaf,
          iterlim = max.iter, steptol = 1e-6
       )
-
    }
 }

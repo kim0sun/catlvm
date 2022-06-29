@@ -12,6 +12,7 @@ args_return <- function(model) {
       cstr_leaf = constr$cstr_leaf,
       cstr_link = constr$cstr_link,
       nclass = model$nclass,
+      nclass_root = model$nclass[as.numeric(model$root)],
       nclass_leaf = constr$nclass_leaf,
       nclass_u = constr$nclass_u,
       nclass_v = constr$nclass_v,
